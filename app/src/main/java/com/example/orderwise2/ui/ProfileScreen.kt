@@ -9,6 +9,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 
 @Composable
 fun ProfileScreen(navController: NavController) {
@@ -21,6 +25,13 @@ fun ProfileScreen(navController: NavController) {
             loyaltyPoints = 120,
         )
     }
+    val context = LocalContext.current
+    val webClientId = "1068919815592-dmloavrch01uahvhrl9iaaddv57hov5c.apps.googleusercontent.com"
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken(webClientId)
+        .requestEmail()
+        .build()
+    val googleSignInClient = GoogleSignIn.getClient(context, gso)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -54,6 +65,21 @@ fun ProfileScreen(navController: NavController) {
             shape = RoundedCornerShape(10.dp)
         ) {
             Text("View Purchase History")
+        }
+        Button(
+            onClick = {
+                googleSignInClient.signOut().addOnCompleteListener {
+                    FirebaseAuth.getInstance().signOut()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("Log Out")
         }
     }
 } 

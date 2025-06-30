@@ -81,6 +81,7 @@ fun FoodDetailScreen(navController: NavController, cartViewModel: CartViewModel,
     // Combine base ingredients (always included) with additional options
     val allIngredientOptions = additionalIngredients
     
+    var selectedBaseIngredients by remember { mutableStateOf(baseIngredients) }
     var selectedAdditionalIngredients by remember { mutableStateOf(setOf<String>()) }
     var quantity by remember { mutableStateOf(1) }
 
@@ -100,7 +101,24 @@ fun FoodDetailScreen(navController: NavController, cartViewModel: CartViewModel,
         Spacer(Modifier.height(12.dp))
         Text(food.name, fontWeight = FontWeight.Bold, fontSize = 22.sp)
         Spacer(Modifier.height(8.dp))
-        Text("Base Ingredients: ${baseIngredients.joinToString(", ")}", fontSize = 14.sp, color = androidx.compose.ui.graphics.Color.Gray)
+        Text("Base Ingredients:", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            baseIngredients.forEach { ingredient ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = selectedBaseIngredients.contains(ingredient),
+                        onCheckedChange = { checked ->
+                            selectedBaseIngredients = if (checked) {
+                                selectedBaseIngredients + ingredient
+                            } else {
+                                selectedBaseIngredients.filter { it != ingredient }.toSet()
+                            }
+                        }
+                    )
+                    Text(ingredient, fontSize = 16.sp)
+                }
+            }
+        }
         Spacer(Modifier.height(18.dp))
         Text("Additional Options", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
         Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
@@ -141,14 +159,17 @@ fun FoodDetailScreen(navController: NavController, cartViewModel: CartViewModel,
                     .filter { selectedAdditionalIngredients.contains(it.name) }
                     .sumOf { it.price }
                 val totalPrice = food.price + additionalPrice
-                
+
                 // Create cart item with selected additional ingredients as remarks
-                val remarks = if (selectedAdditionalIngredients.isNotEmpty()) {
-                    "Added: ${selectedAdditionalIngredients.joinToString(", ")}"
-                } else {
-                    "Standard"
-                }
-                
+                val removedIngredients = baseIngredients - selectedBaseIngredients
+                val removeRemark = if (removedIngredients.isNotEmpty()) {
+                    "Remove: ${removedIngredients.joinToString(", ")}"
+                } else ""
+                val addRemark = if (selectedAdditionalIngredients.isNotEmpty()) {
+                    "Add: ${selectedAdditionalIngredients.joinToString(", ")}"
+                } else ""
+                val remarks = listOf(removeRemark, addRemark).filter { it.isNotBlank() }.joinToString("; ").ifBlank { "Standard" }
+
                 val cartItem = CartItem(
                     name = food.name,
                     quantity = quantity,
