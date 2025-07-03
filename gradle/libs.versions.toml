@@ -9,11 +9,11 @@ lifecycleRuntimeKtx = "2.9.1"
 activityCompose = "1.10.1"
 composeBom = "2024.09.00"
 googleGmsGoogleServices = "4.4.3"
-firebaseAuth = "23.2.1"
+firebaseAuth = "22.3.0"
 credentials = "1.5.0"
 credentialsPlayServicesAuth = "1.5.0"
 googleid = "1.1.1"
-firebaseStorage = "21.0.2"
+firebaseStorage = "20.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

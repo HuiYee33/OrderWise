@@ -17,6 +17,9 @@ import com.example.orderwise2.ui.PurchaseHistoryScreen
 import com.example.orderwise2.ui.ReceiptScreen
 import com.example.orderwise2.ui.LoginScreen
 import com.example.orderwise2.ui.AdminDashboardScreen
+import com.example.orderwise2.ui.AdminMenuScreen
+import com.example.orderwise2.ui.AdminReviewScreen
+import com.example.orderwise2.ui.AdminCafeProfileScreen
 // Add admin screens imports here if needed
 
 @Composable
@@ -44,5 +47,8 @@ fun OrderWiseNavGraph(navController: NavHostController) {
             FoodDetailScreen(navController, cartViewModel, foodId)
         }
         composable(Screen.AdminDashboard.route) { AdminDashboardScreen(navController) }
+        composable(Screen.AdminMenu.route) { AdminMenuScreen(navController) }
+        composable(Screen.AdminReview.route) { AdminReviewScreen(navController) }
+        composable(Screen.AdminCafeProfile.route) { AdminCafeProfileScreen(navController) }
     }
 } 

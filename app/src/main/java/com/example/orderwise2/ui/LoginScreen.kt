@@ -20,6 +20,10 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.GoogleAuthProvider
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.orderwise2.R
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -133,32 +137,48 @@ fun LoginScreen(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
+            .padding(30.dp),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Log In", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(24.dp))
-        if (errorMessage != null) {
-            Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
-            Spacer(Modifier.height(8.dp))
-        }
-        Button(
-            onClick = {
-                val signInIntent = googleSignInClient.signInIntent
-                launcher.launch(signInIntent)
-            },
-            enabled = !isLoading,
+        Spacer(Modifier.height(0.dp))
+        Image(
+            painter = painterResource(id = R.drawable.logo),
+            contentDescription = "App Logo",
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .size(300.dp)
+                .align(Alignment.CenterHorizontally)
+        )
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Sign in with Google")
+            if (errorMessage != null) {
+                Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.height(8.dp))
+            }
+            Text("Log In", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(50.dp))
+            Button(
+                onClick = {
+                    val signInIntent = googleSignInClient.signInIntent
+                    launcher.launch(signInIntent)
+                },
+                enabled = !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFF9800)
+                )
+            ) {
+                Text("Sign in with Google")
+            }
+            if (isLoading) {
+                Spacer(Modifier.height(86.dp))
+                CircularProgressIndicator()
+            }
         }
-        // Optionally, show a loading indicator
-        if (isLoading) {
-            Spacer(Modifier.height(16.dp))
-            CircularProgressIndicator()
-        }
+        Spacer(Modifier.height(0.dp))
     }
 } 

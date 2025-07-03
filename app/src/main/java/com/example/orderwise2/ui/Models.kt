@@ -8,7 +8,10 @@ data class FoodItem(
     val price: Double
 )
 
-data class IngredientOption(val name: String, val price: Double)
+data class IngredientOption(
+    val name: String = "",
+    val price: Double = 0.0
+)
 
 data class CartItem(
     val name: String,

@@ -18,32 +18,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.firestore.FirebaseFirestore
+import com.example.orderwise2.ui.MenuItem
+import com.example.orderwise2.ui.StockStatus
+import com.example.orderwise2.ui.rememberMenuItems
+import androidx.compose.ui.graphics.Color
+import coil.compose.AsyncImage
 
 @Composable
 fun MenuHomeScreen(navController: NavController) {
-    val foodList = listOf(
-        FoodItem(
-            id = "shrimp_fried_rice",
-            name = "Shrimp Fried Rice",
-            imageRes = android.R.drawable.ic_menu_gallery, // Placeholder image
-            ingredients = listOf("Rice", "Shrimp", "Egg", "Onion", "Garlic"),
-            price = 12.90
-        ),
-        FoodItem(
-            id = "mac_cheese",
-            name = "Mac & Cheese",
-            imageRes = android.R.drawable.ic_menu_gallery, // Placeholder image
-            ingredients = listOf("Macaroni", "Cheese", "Milk", "Butter"),
-            price = 10.50
-        ),
-        FoodItem(
-            id = "chicken_rice",
-            name = "Chicken Rice",
-            imageRes = android.R.drawable.ic_menu_gallery, // Placeholder image
-            ingredients = listOf("Rice", "Chicken", "Cucumber", "Soy Sauce"),
-            price = 11.20
-        )
-    )
+    val menuItems = rememberMenuItems().filter { it.stockStatus == StockStatus.AVAILABLE }
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Menu", "Home", "Cart", "Profile")
 
@@ -83,13 +67,12 @@ fun MenuHomeScreen(navController: NavController) {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(innerPadding)
         ) {
-            items(foodList) { food ->
+            items(menuItems) { food ->
                 Card(
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { 
-                            // Navigate to FoodDetail with the food ID
                             navController.navigate(Screen.FoodDetail.route.replace("{foodId}", food.id))
                         },
                     elevation = CardDefaults.cardElevation(4.dp)
@@ -98,15 +81,32 @@ fun MenuHomeScreen(navController: NavController) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(12.dp)
                     ) {
-                        Image(
-                            painter = painterResource(id = food.imageRes),
-                            contentDescription = food.name,
-                            modifier = Modifier
-                                .height(100.dp)
-                                .fillMaxWidth()
-                        )
+                        if (food.imageUri.isNotEmpty()) {
+                            AsyncImage(
+                                model = food.imageUri,
+                                contentDescription = food.name,
+                                modifier = Modifier
+                                    .height(100.dp)
+                                    .fillMaxWidth()
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                                contentDescription = food.name,
+                                modifier = Modifier
+                                    .height(100.dp)
+                                    .fillMaxWidth()
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
                         Text(food.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "RM ${food.price}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color(0xFF4CAF50)
+                        )
                     }
                 }
             }

@@ -61,6 +61,8 @@ dependencies {
     implementation(libs.googleid)
     implementation(libs.firebase.storage)
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("com.google.firebase:firebase-firestore-ktx:24.10.3")
+    implementation("io.coil-kt:coil-compose:2.5.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
