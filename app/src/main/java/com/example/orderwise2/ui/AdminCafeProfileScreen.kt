@@ -24,6 +24,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.google.firebase.firestore.FirebaseFirestore
 import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 data class OperatingHours(
     val day: String,
@@ -54,16 +58,8 @@ fun AdminCafeProfileScreen(navController: NavController) {
         )
     }
 
-    val salesReports = remember {
-        listOf(
-            SalesReport("Today", 1250.50, 45, 27.79),
-            SalesReport("This Week", 8750.25, 320, 27.34),
-            SalesReport("This Month", 32500.75, 1180, 27.54),
-            SalesReport("Last Month", 29800.50, 1050, 28.38)
-        )
-    }
-
-    var showEditDialog by remember { mutableStateOf(false) }
+    var salesReports by remember { mutableStateOf(listOf<SalesReport>()) }
+    var isLoadingSales by remember { mutableStateOf(true) }
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
     val webClientId = "1068919815592-dmloavrch01uahvhrl9iaaddv57hov5c.apps.googleusercontent.com"
@@ -72,6 +68,28 @@ fun AdminCafeProfileScreen(navController: NavController) {
         .requestEmail()
         .build()
     val googleSignInClient = GoogleSignIn.getClient(context, gso)
+
+    // Fetch purchase records and compute sales reports
+    LaunchedEffect(Unit) {
+        db.collection("purchaseHistory")
+            .get()
+            .addOnSuccessListener { result ->
+                val records = mutableListOf<PurchaseRecord>()
+                for (doc in result) {
+                    try {
+                        val record = doc.toObject(PurchaseRecord::class.java).copy(id = doc.id)
+                        records.add(record)
+                    } catch (_: Exception) {}
+                }
+                salesReports = computeSalesReports(records)
+                isLoadingSales = false
+            }
+            .addOnFailureListener {
+                isLoadingSales = false
+            }
+    }
+
+    var showEditDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         bottomBar = { AdminBottomNavigation(navController) }
@@ -173,11 +191,14 @@ fun AdminCafeProfileScreen(navController: NavController) {
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        
-                        salesReports.forEach { report ->
-                            SalesReportRow(report)
-                            if (report != salesReports.last()) {
-                                Spacer(modifier = Modifier.height(8.dp))
+                        if (isLoadingSales) {
+                            CircularProgressIndicator()
+                        } else {
+                            salesReports.forEach { report ->
+                                SalesReportRow(report)
+                                if (report != salesReports.last()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
                             }
                         }
                     }
@@ -309,7 +330,7 @@ fun SalesReportRow(report: SalesReport) {
                     Text(
                         "Total Sales",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = Color.Black
                     )
                     Text(
                         "RM ${String.format("%.2f", report.totalSales)}",
@@ -326,18 +347,6 @@ fun SalesReportRow(report: SalesReport) {
                     )
                     Text(
                         report.totalOrders.toString(),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Column {
-                    Text(
-                        "Avg Order",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Text(
-                        "RM ${String.format("%.2f", report.averageOrderValue)}",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -428,5 +437,78 @@ fun EditProfileDialog(
                 Text("Cancel")
             }
         }
+    )
+}
+
+fun computeSalesReports(records: List<PurchaseRecord>): List<SalesReport> {
+    val now = Date()
+    val cal = Calendar.getInstance()
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val todayStr = sdf.format(now)
+    cal.time = now
+    val weekStart = cal.apply { set(Calendar.DAY_OF_WEEK, firstDayOfWeek) }.time
+    val weekStartStr = sdf.format(weekStart)
+    cal.time = now
+    cal.set(Calendar.DAY_OF_MONTH, 1)
+    val monthStart = cal.time
+    val monthStartStr = sdf.format(monthStart)
+    cal.add(Calendar.MONTH, -1)
+    val lastMonth = cal.time
+    cal.set(Calendar.DAY_OF_MONTH, 1)
+    val lastMonthStart = cal.time
+    val lastMonthStartStr = sdf.format(lastMonthStart)
+    cal.add(Calendar.MONTH, 1)
+    val lastMonthEnd = cal.time
+    val lastMonthEndStr = sdf.format(lastMonthEnd)
+
+    fun filterByDateRange(start: String, end: String): List<PurchaseRecord> {
+        val startDate = sdf.parse(start)
+        val endDate = sdf.parse(end)
+        return records.filter {
+            val datePart = it.date.take(10)
+            val d = try { sdf.parse(datePart) } catch (_: Exception) { null }
+            d != null && !d.before(startDate) && !d.after(endDate)
+        }
+    }
+
+    // Today
+    val todayRecords = records.filter { it.date.startsWith(todayStr) }
+    // This Week
+    val weekRecords = records.filter {
+        val datePart = it.date.take(10)
+        try {
+            val d = sdf.parse(datePart)
+            d != null && !d.before(weekStart)
+        } catch (_: Exception) { false }
+    }
+    // This Month
+    val monthRecords = records.filter {
+        val datePart = it.date.take(10)
+        try {
+            val d = sdf.parse(datePart)
+            d != null && !d.before(monthStart)
+        } catch (_: Exception) { false }
+    }
+    // Last Month
+    val lastMonthRecords = records.filter {
+        val datePart = it.date.take(10)
+        try {
+            val d = sdf.parse(datePart)
+            d != null && !d.before(lastMonthStart) && d.before(monthStart)
+        } catch (_: Exception) { false }
+    }
+
+    fun makeReport(period: String, recs: List<PurchaseRecord>): SalesReport {
+        val totalSales = recs.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
+        val totalOrders = recs.size
+        val avgOrder = if (totalOrders > 0) totalSales / totalOrders else 0.0
+        return SalesReport(period, totalSales, totalOrders, avgOrder)
+    }
+
+    return listOf(
+        makeReport("Today", todayRecords),
+        makeReport("This Week", weekRecords),
+        makeReport("This Month", monthRecords),
+        makeReport("Last Month", lastMonthRecords)
     )
 } 

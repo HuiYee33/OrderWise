@@ -14,10 +14,10 @@ data class IngredientOption(
 )
 
 data class CartItem(
-    val name: String,
-    val quantity: Int,
-    val unitPrice: Double,
-    val remarks: String
+    val name: String = "",
+    val quantity: Int = 0,
+    val unitPrice: Double = 0.0,
+    val remarks: String = ""
 )
 
 data class UserProfile(
@@ -29,7 +29,9 @@ data class UserProfile(
 )
 
 data class PurchaseRecord(
-    val date: String,
-    val items: List<CartItem>,
-    val feedback: String
+    val id: String = "",
+    val date: String = "",
+    val items: List<CartItem> = emptyList(),
+    var feedback: String = "",
+    val userEmail: String = ""
 ) 

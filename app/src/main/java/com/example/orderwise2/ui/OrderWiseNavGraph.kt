@@ -1,5 +1,6 @@
 package com.example.orderwise2.ui
 
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -20,22 +21,49 @@ import com.example.orderwise2.ui.AdminDashboardScreen
 import com.example.orderwise2.ui.AdminMenuScreen
 import com.example.orderwise2.ui.AdminReviewScreen
 import com.example.orderwise2.ui.AdminCafeProfileScreen
+import com.example.orderwise2.ui.HomeScreen
+import com.example.orderwise2.ui.CompleteProfileScreen
 // Add admin screens imports here if needed
 
 @Composable
-fun OrderWiseNavGraph(navController: NavHostController) {
+fun OrderWiseNavGraph(navController: NavHostController, startDestination: String) {
     val cartViewModel: CartViewModel = viewModel()
     
-    NavHost(navController = navController, startDestination = Screen.Login.route) {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable(Screen.Login.route) { LoginScreen(navController) }
-        composable(Screen.MenuHome.route) { MenuHomeScreen(navController) }
+        composable(Screen.Home.route) {
+            HomeScreen(navController)
+        }
+        composable(Screen.MenuHome.route) {
+            MenuHomeScreen(navController)
+        }
         composable(Screen.EditIngredients.route) { /* TODO: Implement or remove */ }
-        composable(Screen.Cart.route) { CartScreen(navController, cartViewModel) }
-        composable(Screen.OrderLater.route) { OrderLaterScreen(navController) }
+        composable(Screen.Cart.route) {
+            CartScreen(
+                navController = navController,
+                cartViewModel = cartViewModel
+            )
+        }
+        composable(Screen.OrderLater.route) {
+            OrderLaterScreen(
+                navController = navController,
+                cartItems = cartViewModel.cartItems,
+                cartViewModel = cartViewModel
+            )
+        }
         composable(Screen.PaymentSuccess.route) { PaymentSuccessScreen(navController) }
         composable(Screen.Profile.route) { ProfileScreen(navController) }
-        composable(Screen.PurchaseHistory.route) { PurchaseHistoryScreen(navController) }
-        composable(Screen.Receipt.route) { ReceiptScreen(navController) }
+        composable(Screen.PurchaseHistory.route) {
+            PurchaseHistoryScreen(navController, cartViewModel)
+        }
+        composable(Screen.Receipt.route) {
+            val latestPurchase = cartViewModel.purchaseHistory.lastOrNull()
+            if (latestPurchase != null) {
+                ReceiptScreen(navController, latestPurchase)
+            } else {
+                ReceiptScreen(navController, null)
+            }
+        }
         // Admin screens here
         composable(
             route = Screen.FoodDetail.route,
@@ -50,5 +78,7 @@ fun OrderWiseNavGraph(navController: NavHostController) {
         composable(Screen.AdminMenu.route) { AdminMenuScreen(navController) }
         composable(Screen.AdminReview.route) { AdminReviewScreen(navController) }
         composable(Screen.AdminCafeProfile.route) { AdminCafeProfileScreen(navController) }
+        // Add complete profile route
+        composable("complete_profile") { CompleteProfileScreen(navController) }
     }
 } 

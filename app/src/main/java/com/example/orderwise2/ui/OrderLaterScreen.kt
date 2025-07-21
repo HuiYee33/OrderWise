@@ -10,19 +10,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
+import android.widget.Toast
+import com.google.firebase.firestore.FirebaseFirestore
+import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.firestore.SetOptions
 
 @Composable
-fun OrderLaterScreen(navController: NavController) {
+fun OrderLaterScreen(
+    navController: NavController,
+    cartItems: List<CartItem>,
+    cartViewModel: CartViewModel
+) {
+    val context = LocalContext.current
     val paymentMethods = listOf("Touch 'n Go", "Online Banking", "Credit/Debit Card")
     var selectedPayment by remember { mutableStateOf(paymentMethods[0]) }
     var selectedDate by remember { mutableStateOf("2024-06-01") }
     var selectedTime by remember { mutableStateOf("12:00 PM") }
     var voucherCode by remember { mutableStateOf("") }
-    val orderSummary = listOf(
-        CartItem("Shrimp Fried Rice", 2, 12.90, "Add Egg, Remove Onion"),
-        CartItem("Mac & Cheese", 1, 10.50, "Extra Cheese")
-    )
-    val subtotal = orderSummary.sumOf { it.unitPrice * it.quantity }
+    val subtotal = cartItems.sumOf { it.unitPrice * it.quantity }
     val discount = if (voucherCode == "SAVE5") 5.0 else 0.0
     val total = subtotal - discount
 
@@ -65,12 +76,14 @@ fun OrderLaterScreen(navController: NavController) {
         }
         Divider()
         Text("Order Summary", fontWeight = FontWeight.SemiBold)
-        orderSummary.forEach { item ->
+        cartItems.forEach { item ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("${item.name} x${item.quantity}", Modifier.weight(1f))
                 Text("RM %.2f".format(item.unitPrice * item.quantity))
             }
-            Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Gray)
+            if (item.remarks.isNotBlank()) {
+                Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Gray)
+            }
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth()) {
@@ -97,11 +110,42 @@ fun OrderLaterScreen(navController: NavController) {
         }
         Spacer(Modifier.weight(1f))
         Button(
-            onClick = { navController.navigate(Screen.PaymentSuccess.route) },
+            onClick = {
+                val userEmail = FirebaseAuth.getInstance().currentUser?.email ?: ""
+                val record = PurchaseRecord(
+                    id = UUID.randomUUID().toString(),
+                    date = getCurrentDateString(),
+                    items = cartItems.toList(),
+                    feedback = "",
+                    userEmail = userEmail
+                )
+                cartViewModel.addPurchaseRecord(record)
+                cartViewModel.clearCart()
+                // Loyalty points logic
+                val pointsEarned = total.toInt()
+                if (userEmail.isNotEmpty()) {
+                    val db = FirebaseFirestore.getInstance()
+                    db.collection("users").document(userEmail)
+                        .set(mapOf("email" to userEmail, "loyaltyPoints" to FieldValue.increment(pointsEarned.toLong())), SetOptions.merge())
+                        .addOnSuccessListener {
+                            Toast.makeText(
+                                context,
+                                "You earned $pointsEarned loyalty points!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                }
+                navController.navigate(Screen.PaymentSuccess.route)
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text("Pay Now")
         }
     }
+}
+
+fun getCurrentDateString(): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    return sdf.format(Date())
 } 

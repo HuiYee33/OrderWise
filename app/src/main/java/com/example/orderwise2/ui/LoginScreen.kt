@@ -63,14 +63,26 @@ fun LoginScreen(navController: NavController) {
                         val user = FirebaseAuth.getInstance().currentUser
                         val email = user?.email
                         val adminEmail = "huiyee.khor@qiu.edu.my" // TODO: Replace with your admin Gmail address
+                        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                         if (email == adminEmail) {
                             navController.navigate(Screen.AdminDashboard.route) {
                                 popUpTo(Screen.Login.route) { inclusive = true }
                             }
-                        } else {
-                            navController.navigate(Screen.MenuHome.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
-                            }
+                        } else if (email != null) {
+                            db.collection("users").document(email).get()
+                                .addOnSuccessListener { doc ->
+                                    val username = doc.getString("username")
+                                    val phone = doc.getString("phone")
+                                    if (username.isNullOrBlank() || phone.isNullOrBlank()) {
+                                        navController.navigate("complete_profile") {
+                                            popUpTo(Screen.Login.route) { inclusive = true }
+                                        }
+                                    } else {
+                                        navController.navigate(Screen.MenuHome.route) {
+                                            popUpTo(Screen.Login.route) { inclusive = true }
+                                        }
+                                    }
+                                }
                         }
                     } else {
                         errorMessage = authResult.exception?.message

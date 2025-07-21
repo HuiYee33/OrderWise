@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -11,15 +12,21 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
 @Composable
-fun ReceiptScreen(navController: NavController) {
-    val items = listOf(
-        CartItem("Shrimp Fried Rice", 2, 12.90, "Add Egg, Remove Onion"),
-        CartItem("Mac & Cheese", 1, 10.50, "Extra Cheese")
-    )
+fun ReceiptScreen(navController: NavController, purchase: PurchaseRecord?) {
+    if (purchase == null) {
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("No recent purchase found.")
+            Button(onClick = { navController.navigate(Screen.MenuHome.route) }) {
+                Text("Return to Home")
+            }
+        }
+        return
+    }
+    val items = purchase.items
     val subtotal = items.sumOf { it.unitPrice * it.quantity }
     val tax = subtotal * 0.06
     val total = subtotal + tax
-    val loyaltyPoints = (total / 2).toInt()
+    val loyaltyPoints = (total).toInt()
     val businessAddress = "123 Cafe Lane, Kuala Lumpur, Malaysia"
     Column(
         modifier = Modifier
@@ -34,7 +41,9 @@ fun ReceiptScreen(navController: NavController) {
                 Text("${item.name} x${item.quantity}", Modifier.weight(1f))
                 Text("RM %.2f".format(item.unitPrice * item.quantity))
             }
-            Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Gray)
+            if (item.remarks.isNotBlank()) {
+                Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Gray)
+            }
         }
         Divider()
         Row(Modifier.fillMaxWidth()) {

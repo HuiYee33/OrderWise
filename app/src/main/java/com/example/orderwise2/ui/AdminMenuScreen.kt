@@ -44,7 +44,11 @@ import androidx.core.net.toUri
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.FileInputStream
 import android.util.Log
+import java.util.UUID
+import android.content.Intent
+import com.example.orderwise2.ui.CloudinaryManager
 
 data class MenuItem(
     val id: String = "",
@@ -313,6 +317,7 @@ fun MenuItemDialog(
     var stockStatus by remember { mutableStateOf(item?.stockStatus ?: StockStatus.AVAILABLE) }
     var imageUri by remember { mutableStateOf(item?.imageUri ?: "") }
     var localImageUri by remember { mutableStateOf<Uri?>(null) }
+    var internalImageFile by remember { mutableStateOf<File?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -330,7 +335,44 @@ fun MenuItemDialog(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        localImageUri = uri
+        Log.d("ImagePicker", "Received URI: $uri")
+        if (uri != null) {
+            if (uri.scheme == "content") {
+                try {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                    Log.d("ImagePicker", "Persistable URI permission taken for $uri")
+                } catch (e: Exception) {
+                    Log.w("ImagePicker", "Failed to take persistable URI permission for $uri", e)
+                }
+            }
+            localImageUri = uri
+            // Copy to internal storage
+            try {
+                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+                if (inputStream != null) {
+                    val file = File(context.cacheDir, "picked_image_${UUID.randomUUID()}.jpg")
+                    val outputStream = FileOutputStream(file)
+                    inputStream.copyTo(outputStream)
+                    inputStream.close()
+                    outputStream.close()
+                    internalImageFile = file
+                    Log.d("ImagePicker", "Copied image to internal storage: ${file.absolutePath}")
+                } else {
+                    internalImageFile = null
+                    Log.w("ImagePicker", "Failed to open input stream for URI: $uri")
+                }
+            } catch (e: Exception) {
+                internalImageFile = null
+                Log.e("ImagePicker", "Failed to copy image to internal storage", e)
+            }
+        } else {
+            Log.w("ImagePicker", "Image selection cancelled or no URI received.")
+            Toast.makeText(context, "Image selection cancelled.", Toast.LENGTH_SHORT).show()
+            internalImageFile = null
+        }
     }
 
     AlertDialog(
@@ -453,47 +495,60 @@ fun MenuItemDialog(
                 onClick = {
                     scope.launch {
                         var finalImageUrl = imageUri
-                        if (localImageUri != null) {
+                        if (internalImageFile != null) {
+                            Log.d("ImageUpload", "Internal file exists: ${internalImageFile!!.exists()}, path: ${internalImageFile!!.absolutePath}")
+                            Log.d("ImageUpload", "Internal file size: ${internalImageFile!!.length()}")
                             isUploading = true
                             try {
-                                val inputStream: InputStream? = context.contentResolver.openInputStream(localImageUri!!)
-                                if (inputStream == null) {
-                                    isUploading = false
-                                    Toast.makeText(context, "Failed to open image stream", Toast.LENGTH_LONG).show()
-                                    return@launch
-                                }
-                                val storageRef = FirebaseStorage.getInstance().reference
-                                val fileName = "menu_images/${System.currentTimeMillis()}.jpg"
-                                val imageRef = storageRef.child(fileName)
-                                // Log before upload
-                                Log.d("ImageUpload", "Starting upload to: $fileName")
-                                val uploadTask = imageRef.putStream(inputStream)
-                                uploadTask.await()
-                                // Log after upload
-                                Log.d("ImageUpload", "Upload successful, getting download URL...")
-                                finalImageUrl = imageRef.downloadUrl.await().toString()
-                                Log.d("ImageUpload", "Download URL: $finalImageUrl")
+                                val inputStream: InputStream = FileInputStream(internalImageFile!!)
+                                CloudinaryManager.uploadImage(
+                                    inputStream = inputStream,
+                                    onSuccess = { url ->
+                                        finalImageUrl = url
+                                        Log.d("ImageUpload", "Download URL: $finalImageUrl")
+                                        isUploading = false
+                                        // Continue with saving
+                                        val additionalOptions = additionalOptionsState.filter { it.value.first }
+                                            .map { IngredientOption(it.key, it.value.second.toDoubleOrNull() ?: 0.0) }
+                                        val newItem = MenuItem(
+                                            id = item?.id ?: UUID.randomUUID().toString(),
+                                            name = name,
+                                            price = price.toDoubleOrNull() ?: 0.0,
+                                            description = description,
+                                            category = category,
+                                            stockStatus = stockStatus,
+                                            imageUri = finalImageUrl,
+                                            ingredients = ingredients,
+                                            additionalOptions = additionalOptions
+                                        )
+                                        onSave(newItem)
+                                    },
+                                    onError = { error ->
+                                        Log.e("ImageUpload", "Upload failed: $error")
+                                        Toast.makeText(context, "Image upload failed: $error", Toast.LENGTH_LONG).show()
+                                        isUploading = false
+                                    }
+                                )
                                 inputStream.close()
+                                internalImageFile!!.delete()
+                                internalImageFile = null
                             } catch (e: Exception) {
                                 isUploading = false
-                                Log.e("ImageUpload", "Upload failed", e)
-                                Toast.makeText(context, "Image upload failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                                return@launch // Do NOT call onSave if upload fails!
+                                Log.e("ImageUpload", "Upload failed: ${e.message}", e)
+                                Toast.makeText(context, "Image upload failed. See logs for details.", Toast.LENGTH_LONG).show()
+                                return@launch
                             }
-                            isUploading = false
-                        }
-                        // Only call onSave if upload succeeded or not needed
-                        if (localImageUri == null || finalImageUrl.startsWith("http")) {
+                        } else {
                             val additionalOptions = additionalOptionsState.filter { it.value.first }
                                 .map { IngredientOption(it.key, it.value.second.toDoubleOrNull() ?: 0.0) }
                             val newItem = MenuItem(
-                                id = item?.id ?: (System.currentTimeMillis().toString()),
+                                id = item?.id ?: UUID.randomUUID().toString(),
                                 name = name,
                                 price = price.toDoubleOrNull() ?: 0.0,
                                 description = description,
                                 category = category,
                                 stockStatus = stockStatus,
-                                imageUri = finalImageUrl, // Only a download URL or previous valid URL
+                                imageUri = finalImageUrl,
                                 ingredients = ingredients,
                                 additionalOptions = additionalOptions
                             )

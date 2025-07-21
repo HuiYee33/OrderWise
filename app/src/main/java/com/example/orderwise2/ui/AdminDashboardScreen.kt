@@ -17,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
+import com.google.firebase.firestore.FirebaseFirestore
+import android.util.Log
 
 data class PreOrder(
     val id: String,
@@ -36,22 +38,45 @@ data class DishStats(
 
 @Composable
 fun AdminDashboardScreen(navController: NavController) {
-    val preOrders = remember {
-        listOf(
-            PreOrder("1", "John Doe", "Shrimp Fried Rice", 2, "Extra spicy", "10:30 AM"),
-            PreOrder("2", "Jane Smith", "Chicken Curry", 1, "No onions", "11:15 AM"),
-            PreOrder("3", "Mike Johnson", "Beef Noodles", 3, "Less salt", "12:00 PM"),
-            PreOrder("4", "Sarah Wilson", "Vegetable Stir Fry", 1, "", "12:30 PM")
-        )
+    var purchaseHistory by remember { mutableStateOf(listOf<PurchaseRecord>()) }
+    var isLoading by remember { mutableStateOf(true) }
+    val db = FirebaseFirestore.getInstance()
+
+    // Fetch purchase history from Firestore
+    LaunchedEffect(Unit) {
+        db.collection("purchaseHistory")
+            .get()
+            .addOnSuccessListener { result ->
+                val records = mutableListOf<PurchaseRecord>()
+                for (doc in result) {
+                    try {
+                        val record = doc.toObject(PurchaseRecord::class.java).copy(id = doc.id)
+                        records.add(record)
+                    } catch (e: Exception) {
+                        Log.e("AdminDashboard", "Failed to parse record: ${doc.id}", e)
+                    }
+                }
+                purchaseHistory = records
+                isLoading = false
+            }
+            .addOnFailureListener { e ->
+                Log.e("AdminDashboard", "Failed to load purchase history", e)
+                isLoading = false
+            }
     }
 
-    val dishStats = remember {
-        listOf(
-            DishStats("Shrimp Fried Rice", 25, 35f, Color(0xFF4CAF50)),
-            DishStats("Chicken Curry", 18, 25f, Color(0xFF2196F3)),
-            DishStats("Beef Noodles", 15, 20f, Color(0xFFFF9800)),
-            DishStats("Vegetable Stir Fry", 12, 20f, Color(0xFF9C27B0))
-        )
+    // Compute summary
+    val totalOrders = purchaseHistory.size
+    val totalItems = purchaseHistory.sumOf { it.items.sumOf { item -> item.quantity } }
+    val revenue = purchaseHistory.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
+    val dishCountMap = mutableMapOf<String, Int>()
+    purchaseHistory.forEach { record ->
+        record.items.forEach { item ->
+            dishCountMap[item.name] = dishCountMap.getOrDefault(item.name, 0) + item.quantity
+        }
+    }
+    val dishStats = dishCountMap.entries.sortedByDescending { it.value }.map { (name, qty) ->
+        DishStats(name, qty, 0f, Color(0xFF4CAF50)) // You can add color/percentage logic if needed
     }
 
     Scaffold(
@@ -78,78 +103,57 @@ fun AdminDashboardScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Today's Overview Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        "Today's Overview",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        StatItem("Total Orders", preOrders.size.toString(), Color(0xFF4CAF50))
-                        StatItem("Total Items", preOrders.sumOf { it.quantity }.toString(), Color(0xFF2196F3))
-                        StatItem("Revenue", "RM ${preOrders.size * 15}", Color(0xFFFF9800))
-                    }
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Dish Popularity Chart
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+            } else {
+                // Overview Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(4.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(
-                        "Dish Popularity",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    dishStats.forEach { dish ->
-                        DishPopularityItem(dish)
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text(
+                            "Overview",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatItem("Total Orders", totalOrders.toString(), Color(0xFF4CAF50))
+                            StatItem("Total Items", totalItems.toString(), Color(0xFF2196F3))
+                            StatItem("Revenue", "RM %.2f".format(revenue), Color(0xFFFF9800))
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Today's Pre-Orders
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(4.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                // Dish Popularity Chart
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(4.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text(
-                        "Today's Pre-Orders",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        items(preOrders) { order ->
-                            PreOrderItem(order)
+                        Text(
+                            "Dish Popularity",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        dishStats.forEach { dish ->
+                            DishPopularityItem(dish)
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
                 }

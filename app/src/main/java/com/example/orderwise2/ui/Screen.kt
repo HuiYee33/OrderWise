@@ -1,6 +1,7 @@
 package com.example.orderwise2.ui
 
 sealed class Screen(val route: String) {
+    object Home : Screen("home")
     object MenuHome : Screen("menu_home")
     object EditIngredients : Screen("edit_ingredients")
     object Cart : Screen("cart")

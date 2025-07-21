@@ -28,37 +28,9 @@ import coil.compose.AsyncImage
 @Composable
 fun MenuHomeScreen(navController: NavController) {
     val menuItems = rememberMenuItems().filter { it.stockStatus == StockStatus.AVAILABLE }
-    var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Menu", "Home", "Cart", "Profile")
 
     Scaffold(
-        bottomBar = {
-            NavigationBar {
-                tabs.forEachIndexed { index, label ->
-                    NavigationBarItem(
-                        icon = {
-                            when (label) {
-                                "Menu" -> Icon(Icons.Default.RestaurantMenu, contentDescription = null)
-                                "Home" -> Icon(Icons.Default.Home, contentDescription = null)
-                                "Cart" -> Icon(Icons.Default.ShoppingCart, contentDescription = null)
-                                "Profile" -> Icon(Icons.Default.Person, contentDescription = null)
-                            }
-                        },
-                        label = { Text(label) },
-                        selected = selectedTab == index,
-                        onClick = {
-                            selectedTab = index
-                            when (label) {
-                                "Menu" -> navController.navigate(Screen.MenuHome.route)
-                                "Home" -> navController.navigate(Screen.MenuHome.route)
-                                "Cart" -> navController.navigate(Screen.Cart.route)
-                                "Profile" -> navController.navigate(Screen.Profile.route)
-                            }
-                        }
-                    )
-                }
-            }
-        }
+        bottomBar = { UserBottomNavigation(navController) }
     ) { innerPadding ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),

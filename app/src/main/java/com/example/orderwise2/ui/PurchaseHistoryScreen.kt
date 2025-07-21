@@ -1,67 +1,70 @@
 package com.example.orderwise2.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
 @Composable
-fun PurchaseHistoryScreen(navController: NavController) {
-    val history = listOf(
-        PurchaseRecord(
-            date = "2024-05-30",
-            items = listOf(
-                CartItem("Shrimp Fried Rice", 1, 12.90, "Add Egg"),
-                CartItem("Chicken Rice", 1, 11.20, "No Cucumber")
-            ),
-            feedback = "Delicious!"
-        ),
-        PurchaseRecord(
-            date = "2024-05-25",
-            items = listOf(
-                CartItem("Mac & Cheese", 2, 10.50, "Extra Cheese"),
-            ),
-            feedback = ""
-        )
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
+fun PurchaseHistoryScreen(navController: NavController, cartViewModel: CartViewModel) {
+    LaunchedEffect(Unit) {
+        cartViewModel.loadPurchaseHistory()
+    }
+    val history = cartViewModel.purchaseHistory
+    val context = LocalContext.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp)
     ) {
-        Text("Purchase History", fontWeight = FontWeight.Bold, fontSize = 22.sp)
-        Spacer(Modifier.height(12.dp))
         if (history.isEmpty()) {
-            Text("No purchase history.", color = Color.Gray)
-        } else {
-            history.forEach { record ->
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    elevation = CardDefaults.cardElevation(2.dp)
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text("Date: ${record.date}", fontWeight = FontWeight.SemiBold)
-                        record.items.forEach { item ->
-                            Text("- ${item.name} x${item.quantity} (${item.remarks})", fontSize = 14.sp)
+            item {
+                Text("No purchase history found.", color = Color.Gray, modifier = Modifier.padding(16.dp))
+            }
+        }
+        items(history) { record ->
+            var feedback by remember { mutableStateOf(record.feedback) }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                elevation = CardDefaults.cardElevation(4.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Date: ${record.date}", fontWeight = FontWeight.Bold)
+                    record.items.forEach { item ->
+                        Text("${item.name} x${item.quantity} - RM %.2f".format(item.unitPrice * item.quantity))
+                        if (item.remarks.isNotBlank()) {
+                            Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Gray)
                         }
-                        if (record.feedback.isNotBlank()) {
-                            Text("Feedback: ${record.feedback}", fontSize = 14.sp, color = Color(0xFF388E3C))
-                        } else {
-                            OutlinedButton(
-                                onClick = { /* TODO: Feedback logic */ },
-                                modifier = Modifier.padding(top = 6.dp)
-                            ) {
-                                Text("Leave Feedback")
-                            }
+                    }
+                    OutlinedTextField(
+                        value = feedback,
+                        onValueChange = { feedback = it },
+                        label = { Text("Feedback") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = feedback.isBlank()
+                    )
+                    if (feedback.isNotBlank()) {
+                        Text("Thank you for your feedback", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+                    } else {
+                        Button(
+                            onClick = {
+                                cartViewModel.updateFeedback(record.id, feedback)
+                                Toast.makeText(context, "Thank you for your feedback", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text("Submit Feedback")
                         }
                     }
                 }

@@ -17,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxSize
+import com.google.firebase.firestore.FirebaseFirestore
+import android.util.Log
 
 data class Review(
     val id: String,
@@ -28,22 +30,46 @@ data class Review(
     val adminReply: String? = null
 )
 
+data class ReviewFeedback(
+    val id: String = "",
+    val date: String = "",
+    val items: List<CartItem> = emptyList(),
+    val feedback: String = "",
+    val adminReply: String? = null
+)
+
 @Composable
 fun AdminReviewScreen(navController: NavController) {
-    var reviews by remember {
-        mutableStateOf(
-            listOf(
-                Review("1", "John Doe", 5, "Excellent food! The shrimp fried rice was amazing.", "2024-01-15", "Shrimp Fried Rice"),
-                Review("2", "Jane Smith", 4, "Good food but a bit too spicy for my taste.", "2024-01-14", "Chicken Curry"),
-                Review("3", "Mike Johnson", 3, "Food was okay, but service was slow.", "2024-01-13", "Beef Noodles"),
-                Review("4", "Sarah Wilson", 5, "Best curry I've ever had! Will definitely come back.", "2024-01-12", "Chicken Curry", "Thank you for your kind words! We're glad you enjoyed it."),
-                Review("5", "David Brown", 2, "The food was cold when it arrived.", "2024-01-11", "Vegetable Stir Fry")
-            )
-        )
-    }
-
-    var selectedReview by remember { mutableStateOf<Review?>(null) }
+    var feedbackList by remember { mutableStateOf(listOf<ReviewFeedback>()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var selectedFeedback by remember { mutableStateOf<ReviewFeedback?>(null) }
     var showReplyDialog by remember { mutableStateOf(false) }
+    val db = FirebaseFirestore.getInstance()
+
+    // Fetch feedback from Firestore
+    LaunchedEffect(Unit) {
+        db.collection("purchaseHistory")
+            .get()
+            .addOnSuccessListener { result ->
+                val records = mutableListOf<ReviewFeedback>()
+                for (doc in result) {
+                    try {
+                        val record = doc.toObject(ReviewFeedback::class.java).copy(id = doc.id)
+                        if (record.feedback.isNotBlank()) {
+                            records.add(record)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("AdminReview", "Failed to parse record: ${doc.id}", e)
+                    }
+                }
+                feedbackList = records
+                isLoading = false
+            }
+            .addOnFailureListener { e ->
+                Log.e("AdminReview", "Failed to load feedback", e)
+                isLoading = false
+            }
+    }
 
     Scaffold(
         bottomBar = { AdminBottomNavigation(navController) }
@@ -61,12 +87,12 @@ fun AdminReviewScreen(navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Customer Reviews",
+                    "Customer Feedback",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "${reviews.size} reviews",
+                    "${feedbackList.size} feedbacks",
                     fontSize = 16.sp,
                     color = Color.Gray
                 )
@@ -74,45 +100,57 @@ fun AdminReviewScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Reviews List
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(reviews) { review ->
-                    ReviewCard(
-                        review = review,
-                        onReply = {
-                            selectedReview = review
-                            showReplyDialog = true
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                if (feedbackList.isEmpty()) {
+                    Text("No customer feedback yet.", color = Color.Gray, modifier = Modifier.padding(16.dp))
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(feedbackList) { feedback ->
+                            FeedbackCard(
+                                feedback = feedback,
+                                onReply = {
+                                    selectedFeedback = feedback
+                                    showReplyDialog = true
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
     }
 
     // Reply Dialog
-    if (showReplyDialog && selectedReview != null) {
+    if (showReplyDialog && selectedFeedback != null) {
         ReplyDialog(
-            review = selectedReview!!,
+            feedback = selectedFeedback!!,
             onDismiss = {
                 showReplyDialog = false
-                selectedReview = null
+                selectedFeedback = null
             },
             onReply = { reply ->
-                reviews = reviews.map { 
-                    if (it.id == selectedReview!!.id) it.copy(adminReply = reply) else it 
+                // Save reply to Firestore
+                db.collection("purchaseHistory").document(selectedFeedback!!.id)
+                    .update("adminReply", reply)
+                feedbackList = feedbackList.map {
+                    if (it.id == selectedFeedback!!.id) it.copy(adminReply = reply) else it
                 }
                 showReplyDialog = false
-                selectedReview = null
+                selectedFeedback = null
             }
         )
     }
 }
 
 @Composable
-fun ReviewCard(
-    review: Review,
+fun FeedbackCard(
+    feedback: ReviewFeedback,
     onReply: () -> Unit
 ) {
     Card(
@@ -129,40 +167,26 @@ fun ReviewCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        review.customerName,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        review.dishName,
-                        fontSize = 14.sp,
-                        color = Color.Gray
-                    )
-                }
-                Column(
-                    horizontalAlignment = Alignment.End
-                ) {
-                    RatingStars(review.rating)
-                    Text(
-                        review.date,
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
+                Text(
+                    feedback.date,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            // Order Details
+            feedback.items.forEach { item ->
+                Text("${item.name} x${item.quantity} - RM %.2f".format(item.unitPrice * item.quantity), fontSize = 14.sp)
+                if (item.remarks.isNotBlank()) {
+                    Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = Color.Gray)
                 }
             }
-
             Spacer(modifier = Modifier.height(8.dp))
-
-            // Comment
-            Text(
-                review.comment,
-                fontSize = 14.sp
-            )
-
+            // Customer Feedback
+            Text("Customer Feedback:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(feedback.feedback, fontSize = 14.sp)
             // Admin Reply
-            if (review.adminReply != null) {
+            if (!feedback.adminReply.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -180,18 +204,16 @@ fun ReviewCard(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            review.adminReply,
+                            feedback.adminReply ?: "",
                             fontSize = 14.sp,
                             color = Color(0xFF1976D2)
                         )
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(8.dp))
-
             // Reply Button
-            if (review.adminReply == null) {
+            if (feedback.adminReply.isNullOrBlank()) {
                 Button(
                     onClick = onReply,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
@@ -199,75 +221,35 @@ fun ReviewCard(
                 ) {
                     Text("Reply")
                 }
-            } else {
-                Text(
-                    "Replied",
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.align(Alignment.End)
-                )
             }
-        }
-    }
-}
-
-@Composable
-fun RatingStars(rating: Int) {
-    Row {
-        repeat(5) { index ->
-            Text(
-                if (index < rating) "★" else "☆",
-                color = if (index < rating) Color(0xFFFFD700) else Color.Gray,
-                fontSize = 16.sp
-            )
         }
     }
 }
 
 @Composable
 fun ReplyDialog(
-    review: Review,
+    feedback: ReviewFeedback,
     onDismiss: () -> Unit,
     onReply: (String) -> Unit
 ) {
     var replyText by remember { mutableStateOf("") }
-
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reply to Review") },
+        title = { Text("Reply to Feedback") },
         text = {
             Column {
-                Text(
-                    "Customer: ${review.customerName}",
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "Dish: ${review.dishName}",
-                    color = Color.Gray
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Review: ${review.comment}",
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                Text("Customer Feedback:")
+                Text(feedback.feedback, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
                 OutlinedTextField(
                     value = replyText,
                     onValueChange = { replyText = it },
                     label = { Text("Your Reply") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    if (replyText.isNotBlank()) {
-                        onReply(replyText)
-                    }
-                }
-            ) {
+            TextButton(onClick = { if (replyText.isNotBlank()) onReply(replyText) }) {
                 Text("Send Reply")
             }
         },
