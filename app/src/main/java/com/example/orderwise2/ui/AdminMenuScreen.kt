@@ -88,6 +88,7 @@ fun rememberMenuItems(): List<MenuItem> {
     return menuItems
 }
 
+// AdminMenuScreen: Main screen for admin to manage menu items
 @Composable
 fun AdminMenuScreen(navController: NavController) {
     val menuItems = rememberMenuItems()

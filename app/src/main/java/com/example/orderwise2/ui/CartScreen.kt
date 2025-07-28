@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
+// CartScreen: Displays the user's current cart, allows editing and checkout
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(navController: NavController, cartViewModel: CartViewModel) {
@@ -103,11 +104,11 @@ fun CartScreen(navController: NavController, cartViewModel: CartViewModel) {
                 Spacer(Modifier.height(24.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Button(
-                        onClick = { navController.navigate(Screen.OrderLater.route) },
+                        onClick = { navController.navigate(Screen.MenuHome.route) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Order Later")
+                        Text("Add More")
                     }
                     Button(
                         onClick = { navController.navigate(Screen.OrderLater.route) },

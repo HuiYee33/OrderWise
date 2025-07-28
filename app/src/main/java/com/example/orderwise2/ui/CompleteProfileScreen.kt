@@ -10,6 +10,7 @@ import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
+// CompleteProfileScreen: Screen for users to complete their profile information
 @Composable
 fun CompleteProfileScreen(navController: NavController) {
     val user = FirebaseAuth.getInstance().currentUser

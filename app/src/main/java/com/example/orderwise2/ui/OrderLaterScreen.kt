@@ -1,12 +1,24 @@
 package com.example.orderwise2.ui
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -21,6 +33,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import androidx.compose.ui.platform.LocalContext
 import com.google.firebase.firestore.SetOptions
 
+// OrderLaterScreen: Allows users to schedule orders for later pickup
 @Composable
 fun OrderLaterScreen(
     navController: NavController,
@@ -28,97 +41,312 @@ fun OrderLaterScreen(
     cartViewModel: CartViewModel
 ) {
     val context = LocalContext.current
-    val paymentMethods = listOf("Touch 'n Go", "Online Banking", "Credit/Debit Card")
-    var selectedPayment by remember { mutableStateOf(paymentMethods[0]) }
-    var selectedDate by remember { mutableStateOf("2024-06-01") }
-    var selectedTime by remember { mutableStateOf("12:00 PM") }
     var voucherCode by remember { mutableStateOf("") }
     val subtotal = cartItems.sumOf { it.unitPrice * it.quantity }
-    val discount = if (voucherCode == "SAVE5") 5.0 else 0.0
-    val total = subtotal - discount
+    val tax = subtotal * 0.06 // 6% tax
+    val total = subtotal + tax
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(Color(0xFFF8B259)) // Light beige background
+            .verticalScroll(rememberScrollState())
     ) {
-        Text("Order Later & Payment", fontWeight = FontWeight.Bold, fontSize = 22.sp)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Date:", fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(8.dp))
-            OutlinedTextField(
-                value = selectedDate,
-                onValueChange = { selectedDate = it },
-                modifier = Modifier.width(120.dp),
-                singleLine = true
-            )
-            Spacer(Modifier.width(16.dp))
-            Text("Time:", fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(8.dp))
-            OutlinedTextField(
-                value = selectedTime,
-                onValueChange = { selectedTime = it },
-                modifier = Modifier.width(100.dp),
-                singleLine = true
-            )
-        }
-        Divider()
-        Text("Payment Method", fontWeight = FontWeight.SemiBold)
-        paymentMethods.forEach { method ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = selectedPayment == method,
-                    onClick = { selectedPayment = method }
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.Black
                 )
-                Text(method)
             }
-        }
-        Divider()
-        Text("Order Summary", fontWeight = FontWeight.SemiBold)
-        cartItems.forEach { item ->
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("${item.name} x${item.quantity}", Modifier.weight(1f))
-                Text("RM %.2f".format(item.unitPrice * item.quantity))
-            }
-            if (item.remarks.isNotBlank()) {
-                Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Gray)
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth()) {
-            Text("Subtotal:", Modifier.weight(1f))
-            Text("RM %.2f".format(subtotal))
-        }
-        Row(Modifier.fillMaxWidth()) {
-            Text("Voucher:", Modifier.weight(1f))
-            OutlinedTextField(
-                value = voucherCode,
-                onValueChange = { voucherCode = it },
-                placeholder = { Text("Enter code") },
-                modifier = Modifier.width(120.dp),
-                singleLine = true
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Check Out",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
             )
         }
-        Row(Modifier.fillMaxWidth()) {
-            Text("Discount:", Modifier.weight(1f))
-            Text("-RM %.2f".format(discount))
+
+        // Order Summary Section
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = "Order Summary",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            // Column headers
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Text(
+                    text = "Unit price",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(end = 16.dp)
+                )
+                Text(
+                    text = "Quantity",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // Order items
+            cartItems.forEach { item ->
+                OrderItemRow(item = item)
+                if (item != cartItems.last()) {
+                    Divider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
+                }
+            }
+
+            // Subtotal, Tax, and Total
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Subtotal
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Subtotal",
+                        fontSize = 16.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "RM ${String.format("%.2f", subtotal)}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Tax
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Tax (6%)",
+                        fontSize = 16.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "RM ${String.format("%.2f", tax)}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Total
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Total",
+                        fontSize = 18.sp,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "RM ${String.format("%.2f", total)}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
-        Row(Modifier.fillMaxWidth()) {
-            Text("Total:", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("RM %.2f".format(total), fontWeight = FontWeight.Bold)
+
+        // Order For Later Button
+        Spacer(modifier = Modifier.height(16.dp))
+        DividerWithDiamonds()
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Button(
+            onClick = { 
+                navController.navigate(Screen.DateTimeSelection.route)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFF4E4BC) // Light gold/beige
+            ),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                text = "Order For Later",
+                color = Color.Black,
+                fontWeight = FontWeight.Medium
+            )
         }
-        Spacer(Modifier.weight(1f))
+
+        // Display the selected pickup date and time if chosen
+        if (cartViewModel.selectedDate != null && cartViewModel.selectedTimeSlot != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Selected: ",
+                        fontSize = 14.sp,
+                        color = Color.Black
+                    )
+                    Text(
+                        text = "${cartViewModel.selectedDate?.displayText} at ${cartViewModel.selectedTimeSlot?.displayText}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+                }
+            }
+        }
+
+        // Payment Details Section
+        Spacer(modifier = Modifier.height(16.dp))
+        DividerWithDiamonds()
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Payment Details",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                TextButton(
+                    onClick = { 
+                        navController.navigate(Screen.PaymentMethod.route)
+                    }
+                ) {
+                    Text(
+                        text = "See all",
+                        color = Color.Blue,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+            
+            // Display selected payment method
+            if (cartViewModel.selectedPaymentMethod.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(18.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Selected: ",
+                        fontSize = 14.sp,
+                        color = Color.Black
+                    )
+                    Text(
+                        text = cartViewModel.selectedPaymentMethod,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+                }
+            }
+        }
+
+        // Offers Section
+        Spacer(modifier = Modifier.height(16.dp))
+        DividerWithDiamonds()
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                text = "Offers",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            Button(
+                onClick = { /* Handle voucher selection */ },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFF8F8F8) // Light off-white
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "Select Voucher",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        // Place Order Button: creates a PurchaseRecord including pickup info if present
+        Spacer(modifier = Modifier.height(16.dp))
+        DividerWithDiamonds()
+        Spacer(modifier = Modifier.height(16.dp))
+        
         Button(
             onClick = {
+                // Get user email
                 val userEmail = FirebaseAuth.getInstance().currentUser?.email ?: ""
+                // Get selected pickup date and time slot (if any)
+                val pickupDate = cartViewModel.selectedDate?.displayText
+                val pickupTimeSlot = cartViewModel.selectedTimeSlot?.displayText
+                // Create purchase record with pickup info
                 val record = PurchaseRecord(
                     id = UUID.randomUUID().toString(),
                     date = getCurrentDateString(),
                     items = cartItems.toList(),
                     feedback = "",
-                    userEmail = userEmail
+                    userEmail = userEmail,
+                    pickupDate = pickupDate,
+                    pickupTimeSlot = pickupTimeSlot
                 )
+                // Add record to history and clear cart
                 cartViewModel.addPurchaseRecord(record)
                 cartViewModel.clearCart()
                 // Loyalty points logic
@@ -135,13 +363,129 @@ fun OrderLaterScreen(
                             ).show()
                         }
                 }
+                // Navigate to payment success screen
                 navController.navigate(Screen.PaymentSuccess.route)
             },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFD3D3D3) // Light gray/purple
+            ),
+            shape = RoundedCornerShape(8.dp)
         ) {
-            Text("Pay Now")
+            Text(
+                text = "Place Order",
+                color = Color.Black,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
         }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+fun OrderItemRow(item: CartItem) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        // Food image (placeholder circle)
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(Color.Gray.copy(alpha = 0.3f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = item.name.take(1).uppercase(),
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Gray
+            )
+        }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        // Item details
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = item.name,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            
+            if (item.remarks.isNotBlank()) {
+                Text(
+                    text = "Remark:",
+                    fontSize = 12.sp,
+                    color = Color.Red,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                item.remarks.split(",").forEach { remark ->
+                    Text(
+                        text = "• $remark",
+                        fontSize = 12.sp,
+                        color = Color.Red
+                    )
+                }
+            }
+        }
+        
+        // Price and quantity
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                text = "RM${String.format("%.2f", item.unitPrice)}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${item.quantity}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+fun DividerWithDiamonds() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(Color.Gray.copy(alpha = 0.5f))
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .height(1.dp)
+                .weight(1f)
+                .background(Color.Gray.copy(alpha = 0.3f))
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(Color.Gray.copy(alpha = 0.5f))
+        )
     }
 }
 

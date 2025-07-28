@@ -2,20 +2,37 @@ package com.example.orderwise2.ui
 
 import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.lifecycle.ViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.FirebaseAuth
 
+// ViewModel for managing cart state, purchase history, and order logic
 class CartViewModel : ViewModel() {
+    // List of items currently in the cart
     private val _cartItems = mutableStateListOf<CartItem>()
     val cartItems: SnapshotStateList<CartItem> = _cartItems
 
+    // List of completed purchase records
     private val _purchaseHistory = mutableStateListOf<PurchaseRecord>()
     val purchaseHistory: List<PurchaseRecord> = _purchaseHistory
 
+    // Currently selected payment method
+    private val _selectedPaymentMethod = mutableStateOf("")
+    val selectedPaymentMethod: String get() = _selectedPaymentMethod.value
+
+    // Currently selected pickup date and time slot for 'order later'
+    private val _selectedDate = mutableStateOf<DateOption?>(null)
+    val selectedDate: DateOption? get() = _selectedDate.value
+
+    private val _selectedTimeSlot = mutableStateOf<TimeSlot?>(null)
+    val selectedTimeSlot: TimeSlot? get() = _selectedTimeSlot.value
+
+    // Firestore database instance
     private val db = FirebaseFirestore.getInstance()
 
+    // Add an item to the cart (or update quantity if already present)
     fun addToCart(item: CartItem) {
         // Check if item already exists in cart
         val existingItemIndex = _cartItems.indexOfFirst { 
@@ -34,12 +51,14 @@ class CartViewModel : ViewModel() {
         }
     }
 
+    // Remove an item from the cart by index
     fun removeFromCart(index: Int) {
         if (index in _cartItems.indices) {
             _cartItems.removeAt(index)
         }
     }
 
+    // Update the quantity of an item in the cart
     fun updateQuantity(index: Int, newQuantity: Int) {
         if (index in _cartItems.indices && newQuantity > 0) {
             val item = _cartItems[index]
@@ -49,14 +68,17 @@ class CartViewModel : ViewModel() {
         }
     }
 
+    // Clear all items from the cart
     fun clearCart() {
         _cartItems.clear()
     }
 
+    // Calculate the total price of items in the cart
     fun getTotal(): Double {
         return _cartItems.sumOf { it.unitPrice * it.quantity }
     }
 
+    // Add a completed purchase record to history and Firestore
     fun addPurchaseRecord(record: PurchaseRecord) {
         _purchaseHistory.add(record)
         db.collection("purchaseHistory")
@@ -64,6 +86,7 @@ class CartViewModel : ViewModel() {
             .set(record)
     }
 
+    // Update feedback for a purchase record
     fun updateFeedback(recordId: String, feedback: String) {
         db.collection("purchaseHistory").document(recordId)
             .update("feedback", feedback)
@@ -74,6 +97,7 @@ class CartViewModel : ViewModel() {
         }
     }
 
+    // Load purchase history from Firestore for the current user
     fun loadPurchaseHistory() {
         val currentUserEmail = FirebaseAuth.getInstance().currentUser?.email
         db.collection("purchaseHistory")
@@ -95,5 +119,16 @@ class CartViewModel : ViewModel() {
             .addOnFailureListener { e ->
                 Log.e("PurchaseHistory", "Failed to load purchase history", e)
             }
+    }
+
+    // Set the selected payment method
+    fun setSelectedPaymentMethod(paymentMethod: String) {
+        _selectedPaymentMethod.value = paymentMethod
+    }
+
+    // Set the selected pickup date and time slot
+    fun setSelectedDateTime(date: DateOption, timeSlot: TimeSlot) {
+        _selectedDate.value = date
+        _selectedTimeSlot.value = timeSlot
     }
 } 

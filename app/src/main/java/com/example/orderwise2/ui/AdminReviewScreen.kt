@@ -38,6 +38,7 @@ data class ReviewFeedback(
     val adminReply: String? = null
 )
 
+// AdminReviewScreen: Main screen for admin to review user feedback and ratings
 @Composable
 fun AdminReviewScreen(navController: NavController) {
     var feedbackList by remember { mutableStateOf(listOf<ReviewFeedback>()) }

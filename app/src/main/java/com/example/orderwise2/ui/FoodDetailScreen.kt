@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import coil.compose.AsyncImage
 
+// FoodDetailScreen: Displays details for a selected food item, allows adding to cart
 @Composable
 fun FoodDetailScreen(navController: NavController, cartViewModel: CartViewModel, foodId: String) {
     var food by remember { mutableStateOf<MenuItem?>(null) }

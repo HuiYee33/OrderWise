@@ -11,8 +11,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
+// ReceiptScreen: Displays a detailed receipt for a completed purchase
 @Composable
 fun ReceiptScreen(navController: NavController, purchase: PurchaseRecord?) {
+    // If no purchase, show message and return
     if (purchase == null) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             Text("No recent purchase found.")
@@ -22,12 +24,14 @@ fun ReceiptScreen(navController: NavController, purchase: PurchaseRecord?) {
         }
         return
     }
+    // Calculate totals and loyalty points
     val items = purchase.items
     val subtotal = items.sumOf { it.unitPrice * it.quantity }
     val tax = subtotal * 0.06
     val total = subtotal + tax
     val loyaltyPoints = (total).toInt()
     val businessAddress = "123 Cafe Lane, Kuala Lumpur, Malaysia"
+    // Main receipt layout
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -35,6 +39,11 @@ fun ReceiptScreen(navController: NavController, purchase: PurchaseRecord?) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Receipt", fontWeight = FontWeight.Bold, fontSize = 22.sp)
+        // Show pickup info if present
+        if (purchase.pickupDate != null && purchase.pickupTimeSlot != null) {
+            Text("Pick up on ${purchase.pickupDate} at ${purchase.pickupTimeSlot}", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Spacer(Modifier.height(4.dp))
+        }
         Spacer(Modifier.height(8.dp))
         items.forEach { item ->
             Row(Modifier.fillMaxWidth()) {

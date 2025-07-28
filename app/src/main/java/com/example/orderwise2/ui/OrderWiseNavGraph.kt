@@ -23,27 +23,37 @@ import com.example.orderwise2.ui.AdminReviewScreen
 import com.example.orderwise2.ui.AdminCafeProfileScreen
 import com.example.orderwise2.ui.HomeScreen
 import com.example.orderwise2.ui.CompleteProfileScreen
+import com.example.orderwise2.ui.PaymentMethodScreen
+import com.example.orderwise2.ui.DateTimeSelectionScreen
 // Add admin screens imports here if needed
 
+// Main navigation graph for the app
 @Composable
 fun OrderWiseNavGraph(navController: NavHostController, startDestination: String) {
+    // Shared CartViewModel instance for navigation
     val cartViewModel: CartViewModel = viewModel()
     
+    // Define navigation routes
     NavHost(navController = navController, startDestination = startDestination) {
+        // Login screen route
         composable(Screen.Login.route) { LoginScreen(navController) }
+        // Home screen route
         composable(Screen.Home.route) {
             HomeScreen(navController)
         }
+        // Menu home screen route
         composable(Screen.MenuHome.route) {
             MenuHomeScreen(navController)
         }
         composable(Screen.EditIngredients.route) { /* TODO: Implement or remove */ }
+        // Cart screen route
         composable(Screen.Cart.route) {
             CartScreen(
                 navController = navController,
                 cartViewModel = cartViewModel
             )
         }
+        // Order later screen route
         composable(Screen.OrderLater.route) {
             OrderLaterScreen(
                 navController = navController,
@@ -56,6 +66,7 @@ fun OrderWiseNavGraph(navController: NavHostController, startDestination: String
         composable(Screen.PurchaseHistory.route) {
             PurchaseHistoryScreen(navController, cartViewModel)
         }
+        // Receipt screen route
         composable(Screen.Receipt.route) {
             val latestPurchase = cartViewModel.purchaseHistory.lastOrNull()
             if (latestPurchase != null) {
@@ -80,5 +91,17 @@ fun OrderWiseNavGraph(navController: NavHostController, startDestination: String
         composable(Screen.AdminCafeProfile.route) { AdminCafeProfileScreen(navController) }
         // Add complete profile route
         composable("complete_profile") { CompleteProfileScreen(navController) }
+        composable(Screen.PaymentMethod.route) { 
+            PaymentMethodScreen(
+                navController = navController,
+                cartViewModel = cartViewModel
+            )
+        }
+        composable(Screen.DateTimeSelection.route) { 
+            DateTimeSelectionScreen(
+                navController = navController,
+                cartViewModel = cartViewModel
+            )
+        }
     }
 } 

@@ -25,6 +25,7 @@ import com.example.orderwise2.ui.rememberMenuItems
 import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
 
+// MenuHomeScreen: Displays the main menu for users to browse food items
 @Composable
 fun MenuHomeScreen(navController: NavController) {
     val menuItems = rememberMenuItems().filter { it.stockStatus == StockStatus.AVAILABLE }

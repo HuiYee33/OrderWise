@@ -25,6 +25,7 @@ import androidx.compose.ui.res.painterResource
 import com.example.orderwise2.R
 import androidx.compose.ui.graphics.Color
 
+// LoginScreen: Handles user authentication and login UI
 @Composable
 fun LoginScreen(navController: NavController) {
     var isLogin by remember { mutableStateOf(true) }
