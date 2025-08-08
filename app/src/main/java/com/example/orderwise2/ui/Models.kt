@@ -17,7 +17,8 @@ data class CartItem(
     val name: String = "",
     val quantity: Int = 0,
     val unitPrice: Double = 0.0,
-    val remarks: String = ""
+    val remarks: String = "",
+    val category: String = ""
 )
 
 data class UserProfile(

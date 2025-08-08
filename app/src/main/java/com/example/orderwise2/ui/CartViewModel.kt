@@ -80,20 +80,21 @@ class CartViewModel : ViewModel() {
 
     // Add a completed purchase record to history and Firestore
     fun addPurchaseRecord(record: PurchaseRecord) {
-        _purchaseHistory.add(record)
-        db.collection("purchaseHistory")
-            .document(record.id)
-            .set(record)
+        _purchaseHistory.add(record) // Add the new record to the local list (in memory)
+        db.collection("purchaseHistory") // Save the record to Firestore database under the "purchaseHistory" collection
+            .document(record.id)  // Use the record's ID as the document ID
+            .set(record) // Store the entire record object in the database
     }
 
     // Update feedback for a purchase record
     fun updateFeedback(recordId: String, feedback: String) {
+        // Update the "feedback" field in the Firestore document with the given record ID
         db.collection("purchaseHistory").document(recordId)
             .update("feedback", feedback)
         // Also update in local list
         val idx = _purchaseHistory.indexOfFirst { it.id == recordId }
-        if (idx != -1) {
-            _purchaseHistory[idx] = _purchaseHistory[idx].copy(feedback = feedback)
+        if (idx != -1) { // If the record is found in the list
+            _purchaseHistory[idx] = _purchaseHistory[idx].copy(feedback = feedback) // Replace the old record with a copy that includes the new feedback
         }
     }
 

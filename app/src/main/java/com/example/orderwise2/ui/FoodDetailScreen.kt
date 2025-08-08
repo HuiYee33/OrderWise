@@ -153,7 +153,8 @@ fun FoodDetailScreen(navController: NavController, cartViewModel: CartViewModel,
                     name = food!!.name,
                     quantity = quantity,
                     unitPrice = totalPrice,
-                    remarks = remarks
+                    remarks = remarks,
+                    category = food!!.category
                 )
                 cartViewModel.addToCart(cartItem)
                 navController.navigate(Screen.Cart.route)

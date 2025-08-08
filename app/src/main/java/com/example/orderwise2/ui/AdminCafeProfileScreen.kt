@@ -61,12 +61,12 @@ fun AdminCafeProfileScreen(navController: NavController) {
     var salesReports by remember { mutableStateOf(listOf<SalesReport>()) }
     var isLoadingSales by remember { mutableStateOf(true) }
     val context = LocalContext.current
-    val db = FirebaseFirestore.getInstance()
+    val db = FirebaseFirestore.getInstance() //connect to cloud firestore
     val webClientId = "1068919815592-dmloavrch01uahvhrl9iaaddv57hov5c.apps.googleusercontent.com"
     val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-        .requestIdToken(webClientId)
-        .requestEmail()
-        .build()
+        .requestIdToken(webClientId) //ask google to give id token to login firebase
+        .requestEmail() //request email
+        .build() //finish setting up
     val googleSignInClient = GoogleSignIn.getClient(context, gso)
 
     // Fetch purchase records and compute sales reports
@@ -114,7 +114,7 @@ fun AdminCafeProfileScreen(navController: NavController) {
                         fontWeight = FontWeight.Bold
                     )
                     Button(
-                        onClick = { showEditDialog = true },
+                        onClick = { showEditDialog = true }, //when user click buttton, it sets shoEditDialog to true and it will go line 228
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                     ) {
                         Text("Edit Profile")
@@ -125,8 +125,8 @@ fun AdminCafeProfileScreen(navController: NavController) {
             item {
                 // Cafe Information Card
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(4.dp),
+                    modifier = Modifier.fillMaxWidth(), // take up all width
+                    elevation = CardDefaults.cardElevation(4.dp), //shadow effects, make it look lifted above the background.
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(
@@ -168,7 +168,7 @@ fun AdminCafeProfileScreen(navController: NavController) {
                         operatingHours.forEach { hours ->
                             OperatingHoursRow(hours)
                             if (hours != operatingHours.last()) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(4.dp)) //line spacing
                             }
                         }
                     }
@@ -191,13 +191,13 @@ fun AdminCafeProfileScreen(navController: NavController) {
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        if (isLoadingSales) {
-                            CircularProgressIndicator()
+                        if (isLoadingSales) { //check if the app still fetching data
+                            CircularProgressIndicator() //shows the loading spinner
                         } else {
-                            salesReports.forEach { report ->
-                                SalesReportRow(report)
-                                if (report != salesReports.last()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
+                            salesReports.forEach { report -> //loop all item in sales report and each item store temporarily in report
+                                SalesReportRow(report) //display sales report
+                                if (report != salesReports.last()) { //if there is not the last report
+                                    Spacer(modifier = Modifier.height(8.dp)) // add the space(line spacing)
                                 }
                             }
                         }
@@ -208,10 +208,10 @@ fun AdminCafeProfileScreen(navController: NavController) {
             item {
                 Button(
                     onClick = {
-                        googleSignInClient.signOut().addOnCompleteListener {
-                            FirebaseAuth.getInstance().signOut()
+                        googleSignInClient.signOut().addOnCompleteListener { //log out user from current google acc, then run below code if sign out is complete
+                            FirebaseAuth.getInstance().signOut() //ensure user already sign out from both system (firebase and google)
                             navController.navigate(Screen.Login.route) {
-                                popUpTo(0) { inclusive = true }
+                                popUpTo(0) { inclusive = true } //clear the entire previous step
                             }
                         }
                     },

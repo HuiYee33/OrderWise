@@ -56,22 +56,35 @@ fun PurchaseHistoryScreen(navController: NavController, cartViewModel: CartViewM
                             Text("Remarks: ${item.remarks}", fontSize = 12.sp, color = androidx.compose.ui.graphics.Color.Gray)
                         }
                     }
+
+                    // Check if the feedback has already been submitted (not empty)
+                    val isFeedbackSubmitted = record.feedback.isNotBlank()
+
+                    // Input field for user to type feedback
                     OutlinedTextField(
-                        value = feedback,
-                        onValueChange = { feedback = it },
-                        label = { Text("Feedback") },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = feedback.isBlank()
+                        value = feedback, // Current value of the text field
+                        onValueChange = { feedback = it }, // Update the feedback variable when user types
+                        label = { Text("Feedback") }, // Label shown above the text field
+                        modifier = Modifier.fillMaxWidth(), // Make the field stretch full width
+                        enabled =!isFeedbackSubmitted  //Disable input after submission
                     )
-                    if (feedback.isNotBlank()) {
-                        Text("Thank you for your feedback", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
-                    } else {
+                    if (isFeedbackSubmitted) { // If feedback was already submitted
+                        Text(
+                            "Thank you for your feedback",
+                            color = MaterialTheme.colorScheme.primary, // Use primary color from theme
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 8.dp) // Add spacing at the top
+                        )
+                    } else { // If feedback not yet submitted, show the Submit button
                         Button(
                             onClick = {
-                                cartViewModel.updateFeedback(record.id, feedback)
-                                Toast.makeText(context, "Thank you for your feedback", Toast.LENGTH_SHORT).show()
+                                if (feedback.isNotBlank()) { // Only submit if feedback is not empty
+                                    cartViewModel.updateFeedback(record.id, feedback) // Save feedback to Firestore
+                                    Toast.makeText(context, "Thank you for your feedback", Toast.LENGTH_SHORT).show() // Show a small popup message
+                                }
                             },
-                            modifier = Modifier.align(Alignment.End)
+                            modifier = Modifier.align(Alignment.End), //at the right side of the container
+                            enabled = feedback.isNotBlank() // Disable button if input is empty
                         ) {
                             Text("Submit Feedback")
                         }

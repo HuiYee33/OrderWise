@@ -1,24 +1,38 @@
 package com.example.orderwise2.ui
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.* //provide layout function like row and column
+import androidx.compose.foundation.lazy.LazyColumn //display vertical scrolling
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items //show item in list
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.material3.* //provide modern UI element like button, card
+import androidx.compose.runtime.* //keep track of changing data in the screen, update automatic UI if data changes using remember, mutableStateOf, LaunchedEffect
+import androidx.compose.ui.Alignment //position items
+import androidx.compose.ui.Modifier //things like padding, size, color
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp //density-independent pixels (use for layout like height)
+import androidx.compose.ui.unit.sp //scale-independent pixels (use for text)
 import androidx.navigation.NavController
 import androidx.compose.foundation.background
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip //make sure corner stay round
+import androidx.compose.foundation.layout.padding //space inside element
+import androidx.compose.foundation.layout.fillMaxSize //make ad big as possible
 import com.google.firebase.firestore.FirebaseFirestore
-import android.util.Log
+import android.util.Log //print messages for testing and fixing bug
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import java.text.ParseException
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 data class PreOrder(
     val id: String,
@@ -36,55 +50,127 @@ data class DishStats(
     val color: Color
 )
 
+enum class OverviewRange { TODAY, WEEK, MONTH }
+
 @Composable
 fun AdminDashboardScreen(navController: NavController) {
     var purchaseHistory by remember { mutableStateOf(listOf<PurchaseRecord>()) }
     var isLoading by remember { mutableStateOf(true) }
+    var selectedTab by remember { mutableStateOf(0) }
+    var selectedOverviewRange by remember { mutableStateOf(OverviewRange.TODAY) }
+    var selectedPopularityCategory by remember { mutableStateOf<String?>(null) }
     val db = FirebaseFirestore.getInstance()
+    val chatGPTService = remember { ChatGPTService() }
+    val allMenuItems = rememberMenuItems()
+    val categoriesFromMenu = remember(allMenuItems) { allMenuItems.map { it.category }.filter { it.isNotBlank() }.distinct() }
+    val categoriesFromHistory = remember(purchaseHistory) {
+        purchaseHistory.flatMap { it.items }
+            .map { it.category }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+    val categories = remember(categoriesFromMenu, categoriesFromHistory) {
+        (categoriesFromMenu + categoriesFromHistory).distinct()
+    }
 
     // Fetch purchase history from Firestore
     LaunchedEffect(Unit) {
-        db.collection("purchaseHistory")
-            .get()
-            .addOnSuccessListener { result ->
-                val records = mutableListOf<PurchaseRecord>()
-                for (doc in result) {
+        db.collection("purchaseHistory") //get purchase history collection from firebase
+            .get() //ask db to read all the document in the collection
+            .addOnSuccessListener { result -> //run this block if data loads successful
+                val records = mutableListOf<PurchaseRecord>() // Create an empty list to store the purchase records
+                for (doc in result) { //Loop through each document (record) in the result
                     try {
-                        val record = doc.toObject(PurchaseRecord::class.java).copy(id = doc.id)
-                        records.add(record)
-                    } catch (e: Exception) {
-                        Log.e("AdminDashboard", "Failed to parse record: ${doc.id}", e)
+                        val record = doc.toObject(PurchaseRecord::class.java).copy(id = doc.id) //Convert the document to a PurchaseRecord object and keep its ID
+                        records.add(record) //Add the converted record to the list
+                    } catch (e: Exception) { //when conversation go wrong
+                        Log.e("AdminDashboard", "Failed to parse record: ${doc.id}", e) //print error message to log with document id and error
                     }
                 }
-                purchaseHistory = records
-                isLoading = false
+                purchaseHistory = records //save full list of pc to screen state
+                isLoading = false //set loading to false(loading done)
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener { e -> //if data load fail
                 Log.e("AdminDashboard", "Failed to load purchase history", e)
                 isLoading = false
             }
     }
 
-    // Compute summary
-    val totalOrders = purchaseHistory.size
-    val totalItems = purchaseHistory.sumOf { it.items.sumOf { item -> item.quantity } }
-    val revenue = purchaseHistory.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
-    val dishCountMap = mutableMapOf<String, Int>()
-    purchaseHistory.forEach { record ->
-        record.items.forEach { item ->
-            dishCountMap[item.name] = dishCountMap.getOrDefault(item.name, 0) + item.quantity
+    // Compute dish popularity across all time (Overview uses range-specific filtering below)
+    val dishCountMapAll = remember(purchaseHistory) {
+        val map = mutableMapOf<String, Int>()
+        purchaseHistory.forEach { record ->
+            record.items.forEach { item ->
+                map[item.name] = map.getOrDefault(item.name, 0) + item.quantity
+            }
+        }
+        map
+    }
+    val nameToCategoryFromMenu = remember(allMenuItems) { allMenuItems.associate { it.name to it.category } }
+    val nameToCategoryFromHistory = remember(purchaseHistory) {
+        purchaseHistory.flatMap { it.items }
+            .filter { it.category.isNotBlank() }
+            .associate { it.name to it.category }
+    }
+    val nameToCategory = remember(nameToCategoryFromMenu, nameToCategoryFromHistory) {
+        // Prefer menu category; fall back to first seen in history
+        nameToCategoryFromHistory + nameToCategoryFromMenu
+    }
+    val filteredDishCountMap = remember(selectedPopularityCategory, purchaseHistory, nameToCategory) {
+        if (selectedPopularityCategory == null) dishCountMapAll else {
+            val map = mutableMapOf<String, Int>()
+            purchaseHistory.forEach { record ->
+                record.items.forEach { item ->
+                    val cat = if (item.category.isNotBlank()) item.category else nameToCategory[item.name] ?: ""
+                    if (cat == selectedPopularityCategory) {
+                        map[item.name] = map.getOrDefault(item.name, 0) + item.quantity
+                    }
+                }
+            }
+            map
         }
     }
-    val dishStats = dishCountMap.entries.sortedByDescending { it.value }.map { (name, qty) ->
-        DishStats(name, qty, 0f, Color(0xFF4CAF50)) // You can add color/percentage logic if needed
-    }
+    val totalDishQuantity = filteredDishCountMap.values.sum().coerceAtLeast(1)
+    val colorPalette = listOf(
+        Color(0xFF4CAF50), // Green
+        Color(0xFF2196F3), // Blue
+        Color(0xFFFF9800), // Orange
+        Color(0xFFE91E63), // Pink
+        Color(0xFF9C27B0), // Purple
+        Color(0xFF00BCD4), // Cyan
+        Color(0xFF8BC34A), // Light Green
+        Color(0xFFFF5722), // Deep Orange
+        Color(0xFF3F51B5), // Indigo
+        Color(0xFF795548)  // Brown
+    )
+    val dishStatsAll = dishCountMapAll.entries
+        .sortedByDescending { it.value }
+        .mapIndexed { index, (name, qty) ->
+            val percentage = qty * 100f / totalDishQuantity
+            val color = colorPalette[index % colorPalette.size]
+            DishStats(name = name, quantity = qty, percentage = percentage, color = color)
+        }
+    val dishStats = filteredDishCountMap.entries
+        .sortedByDescending { it.value }
+        .mapIndexed { index, (name, qty) ->
+            val filteredTotal = filteredDishCountMap.values.sum().coerceAtLeast(1)
+            val percentage = qty * 100f / filteredTotal
+            val color = colorPalette[index % colorPalette.size]
+            DishStats(name = name, quantity = qty, percentage = percentage, color = color)
+        }
+
+    // Overall snapshot for AI assistant (unfiltered)
+    val overallOrders = purchaseHistory.size
+    val overallItems = purchaseHistory.sumOf { it.items.sumOf { item -> item.quantity } }
+    val overallRevenue = purchaseHistory.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
+    val dashboardData = DashboardData(overallOrders, overallItems, overallRevenue, dishStats)
 
     Scaffold(
         bottomBar = { AdminBottomNavigation(navController) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize() //taking up the full screen
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
@@ -103,62 +189,178 @@ fun AdminDashboardScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (isLoading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+            // Tab Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    TabButton(
+                        text = "Analytics",
+                        icon = Icons.Default.Analytics,
+                        isSelected = selectedTab == 0,
+                        onClick = { selectedTab = 0 }
+                    )
                 }
-            } else {
-                // Overview Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(4.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "Overview",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            StatItem("Total Orders", totalOrders.toString(), Color(0xFF4CAF50))
-                            StatItem("Total Items", totalItems.toString(), Color(0xFF2196F3))
-                            StatItem("Revenue", "RM %.2f".format(revenue), Color(0xFFFF9800))
+                Box(modifier = Modifier.weight(1f)) {
+                    TabButton(
+                        text = "AI Assistant",
+                        icon = Icons.Default.Chat, //default chat bubble icon provided by Material Icons in Jetpack Compose.
+                        isSelected = selectedTab == 1, // Check if this tab is selected (true if selectedTab is 1)
+                        onClick = { selectedTab = 1 } // When user clicks this tab, set selectedTab to 1 (make it active)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            when (selectedTab) { // Switch between tabs select by user
+                0 -> { // user choose tab 0 (Analytic tab)
+                    // Analytics Tab
+                    if (isLoading) { //check whether data is still loading
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { // Show a loading spinner in the center of the screen
+                            CircularProgressIndicator()
                         }
+                    } else { // if data is loaded
+                        AnalyticsContent(
+                            purchaseHistory = purchaseHistory,
+                            selectedRange = selectedOverviewRange,
+                            onRangeChange = { selectedOverviewRange = it },
+                            dishStats = dishStats,
+                            categories = categories,
+                            selectedCategory = selectedPopularityCategory,
+                            onCategoryChange = { selectedPopularityCategory = it }
+                        )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Dish Popularity Chart
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(4.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "Dish Popularity",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        dishStats.forEach { dish ->
-                            DishPopularityItem(dish)
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                    }
+                1 -> { //user select tab 1
+                    ChatGPTComponent(chatGPTService, dashboardData) // Display the ChatGPT AI Assistant component
                 }
             }
         }
+    }
+}
+
+@Composable
+fun TabButton(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) Color(0xFF4CAF50) else Color(0xFFE0E0E0)
+        ),
+        contentPadding = PaddingValues(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) Color.White else Color.Black
+            )
+            Text(
+                text = text,
+                color = if (isSelected) Color.White else Color.Black,
+                fontSize = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun AnalyticsContent(
+    purchaseHistory: List<PurchaseRecord>,
+    selectedRange: OverviewRange,
+    onRangeChange: (OverviewRange) -> Unit,
+    dishStats: List<DishStats>,
+    categories: List<String>,
+    selectedCategory: String?,
+    onCategoryChange: (String?) -> Unit
+) {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState())
+    ) {
+        // Overview Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(4.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    "Overview",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OverviewRangeSelector(selected = selectedRange, onChange = onRangeChange)
+                Spacer(modifier = Modifier.height(8.dp))
+                val (totalOrders, totalItems, revenue) = remember(purchaseHistory, selectedRange) {
+                    val filtered = filterHistoryByRange(purchaseHistory, selectedRange)
+                    val orders = filtered.size
+                    val items = filtered.sumOf { it.items.sumOf { item -> item.quantity } }
+                    val rev = filtered.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
+                    Triple(orders, items, rev)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    StatItem("Total Orders", totalOrders.toString(), Color(0xFF4CAF50))
+                    StatItem("Total Items", totalItems.toString(), Color(0xFF2196F3))
+                    StatItem("Revenue", "RM %.2f".format(revenue), Color(0xFFFF9800))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Dish Popularity Chart
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(4.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    "Dish Popularity",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                CategoryFilterSelector(
+                    categories = categories,
+                    selected = selectedCategory,
+                    onChange = onCategoryChange
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                if (dishStats.isNotEmpty()) {
+                    PieChart(
+                        data = dishStats,
+                        modifier = Modifier
+                            .size(240.dp)
+                            .align(Alignment.CenterHorizontally)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                dishStats.forEach { dish ->
+                    DishPopularityItem(dish)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+
     }
 }
 
@@ -187,6 +389,13 @@ fun DishPopularityItem(dish: DishStats) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(dish.color)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             dish.name,
             modifier = Modifier.weight(1f),
@@ -222,6 +431,148 @@ fun DishPopularityItem(dish: DishStats) {
         }
     }
 }
+
+@Composable
+fun PieChart(
+    data: List<DishStats>,
+    modifier: Modifier = Modifier,
+    startAngle: Float = -90f
+) {
+    Canvas(modifier = modifier) {
+        val totalQuantity = data.sumOf { it.quantity }.coerceAtLeast(1)
+        var currentStartAngle = startAngle
+        val diameter = size.minDimension
+        val topLeft = Offset(
+            (size.width - diameter) / 2f,
+            (size.height - diameter) / 2f
+        )
+        val chartSize = Size(diameter, diameter)
+
+        data.forEach { entry ->
+            val sweepAngle = (entry.quantity.toFloat() / totalQuantity.toFloat()) * 360f
+            if (sweepAngle > 0f) {
+                drawArc(
+                    color = entry.color,
+                    startAngle = currentStartAngle,
+                    sweepAngle = sweepAngle,
+                    useCenter = true,
+                    topLeft = topLeft,
+                    size = chartSize
+                )
+                currentStartAngle += sweepAngle
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverviewRangeSelector(
+    selected: OverviewRange,
+    onChange: (OverviewRange) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(text = "Today", isSelected = selected == OverviewRange.TODAY) {
+            onChange(OverviewRange.TODAY)
+        }
+        FilterChip(text = "Weekly", isSelected = selected == OverviewRange.WEEK) {
+            onChange(OverviewRange.WEEK)
+        }
+        FilterChip(text = "Monthly", isSelected = selected == OverviewRange.MONTH) {
+            onChange(OverviewRange.MONTH)
+        }
+    }
+}
+
+@Composable
+private fun FilterChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) Color(0xFF4CAF50) else Color(0xFFE0E0E0)
+        ),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(text = text, color = if (isSelected) Color.White else Color.Black, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun CategoryFilterSelector(
+    categories: List<String>,
+    selected: String?,
+    onChange: (String?) -> Unit
+) {
+    Column {
+        Text("Category", fontSize = 12.sp, color = Color.Gray)
+        Spacer(modifier = Modifier.height(4.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(text = "Overall", isSelected = selected == null) { onChange(null) }
+            }
+            if (categories.isEmpty()) {
+                item { Text("No categories found", color = Color.Gray, fontSize = 12.sp) }
+            } else {
+                items(categories) { cat ->
+                    FilterChip(text = cat, isSelected = selected == cat) { onChange(cat) }
+                }
+            }
+        }
+    }
+}
+
+private fun filterHistoryByRange(
+    purchaseHistory: List<PurchaseRecord>,
+    range: OverviewRange
+): List<PurchaseRecord> {
+    val format = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    val now = Calendar.getInstance()
+
+    fun parse(dateStr: String): Date? = try {
+        format.parse(dateStr)
+    } catch (_: ParseException) {
+        null
+    }
+
+    return when (range) {
+        OverviewRange.TODAY -> {
+            val start = (now.clone() as Calendar).apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            }.time
+            val end = (now.clone() as Calendar).apply {
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+            }.time
+            purchaseHistory.filter { rec ->
+                parse(rec.date)?.let { it.after(start) && it.before(end) } ?: false
+            }
+        }
+        OverviewRange.WEEK -> {
+            val cal = now.clone() as Calendar
+            cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            val start = cal.time
+            val end = (now.clone() as Calendar).apply {
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+            }.time
+            purchaseHistory.filter { rec ->
+                parse(rec.date)?.let { it.after(start) && it.before(end) } ?: false
+            }
+        }
+        OverviewRange.MONTH -> {
+            val cal = now.clone() as Calendar
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+            val start = cal.time
+            val end = (now.clone() as Calendar).apply {
+                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+            }.time
+            purchaseHistory.filter { rec ->
+                parse(rec.date)?.let { it.after(start) && it.before(end) } ?: false
+            }
+        }
+    }
+}
+
+// Backfill helper removed per request
 
 @Composable
 fun PreOrderItem(order: PreOrder) {
