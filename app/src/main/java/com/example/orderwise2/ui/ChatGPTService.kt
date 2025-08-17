@@ -11,6 +11,7 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import java.util.concurrent.TimeUnit
 import android.util.Log
+import androidx.compose.ui.graphics.Color
 
 // Data classes for ChatGPT API
 data class ChatMessage( //create it before message send to ChatGPT
@@ -50,9 +51,11 @@ data class Usage(
     val totalTokens: Int
 )
 
+
+
 // Retrofit( talk to web APIs easily, also handle JSON conversion) service interface
 interface ChatGPTApiService { // Define a Retrofit interface to communicate with the ChatGPT API (like a rule that retrofit have to flw to send or receive message)
-    @POST("v1/chat/completions") //make a post request to this URL (Endpoint)
+    @POST("chat/completions") //make a post request to this URL (Endpoint)
     suspend fun sendMessage( //suspend function that sends the request and waits for a reply from ChatGPT
         @Header("Authorization") authorization: String, //send API key securely in the request to make sure only allowed use can use.
         @Body request: ChatRequest //Send the user's message and settings to ChatGPT in JSON format
@@ -148,11 +151,15 @@ class ChatGPTService {
         return sendMessage(prompt, context)
     }
     
+
+    
     // Helper method for general restaurant management advice
     suspend fun getRestaurantAdvice(topic: String): Result<String> {
         val prompt = "Provide helpful advice about: $topic for a restaurant owner. Keep it concise and actionable."
         return sendMessage(prompt)
     }
+    
+
     
     // Test function to verify API key
     suspend fun testApiKey(): Result<String> {

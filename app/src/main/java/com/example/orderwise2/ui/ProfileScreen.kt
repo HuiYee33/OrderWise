@@ -102,7 +102,7 @@ fun ProfileScreen(navController: NavController) {
                 }
                 Spacer(Modifier.height(12.dp))
                 Button(
-                    onClick = { /* TODO: Redeem voucher logic */ },
+                    onClick = { navController.navigate(Screen.RedeemVoucher.route) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 ) {

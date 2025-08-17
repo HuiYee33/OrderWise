@@ -33,6 +33,12 @@ sealed class AdminBottomNavItem(
         title = "Profile",
         icon = Icons.Default.Person
     )
+
+    object Voucher : AdminBottomNavItem(
+        route = Screen.AdminVoucher.route,
+        title = "Voucher",
+        icon = Icons.Default.Discount
+    )
 }
 
 @Composable
@@ -41,7 +47,8 @@ fun AdminBottomNavigation(navController: NavController) {
         AdminBottomNavItem.DailySales,
         AdminBottomNavItem.MenuManagement,
         AdminBottomNavItem.Reviews,
-        AdminBottomNavItem.Profile
+        AdminBottomNavItem.Profile,
+        AdminBottomNavItem.Voucher,
     )
     
     val navBackStackEntry = navController.currentBackStackEntryAsState()

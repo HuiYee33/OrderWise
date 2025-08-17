@@ -75,6 +75,10 @@ fun OrderWiseNavGraph(navController: NavHostController, startDestination: String
                 ReceiptScreen(navController, null)
             }
         }
+
+        composable(Screen.RedeemVoucher.route) { RedeemVoucherScreen(navController) }
+        composable("admin_voucher") { AdminVoucherScreen(navController) }
+
         // Admin screens here
         composable(
             route = Screen.FoodDetail.route,
@@ -89,6 +93,7 @@ fun OrderWiseNavGraph(navController: NavHostController, startDestination: String
         composable(Screen.AdminMenu.route) { AdminMenuScreen(navController) }
         composable(Screen.AdminReview.route) { AdminReviewScreen(navController) }
         composable(Screen.AdminCafeProfile.route) { AdminCafeProfileScreen(navController) }
+        composable(Screen.AdminVoucher.route) { AdminVoucherScreen(navController) }
         // Add complete profile route
         composable("complete_profile") { CompleteProfileScreen(navController) }
         composable(Screen.PaymentMethod.route) { 

@@ -50,26 +50,28 @@ data class DishStats(
     val color: Color
 )
 
-enum class OverviewRange { TODAY, WEEK, MONTH }
+enum class OverviewRange { TODAY, WEEK, MONTH } //fix the value
 
 @Composable
 fun AdminDashboardScreen(navController: NavController) {
-    var purchaseHistory by remember { mutableStateOf(listOf<PurchaseRecord>()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var selectedTab by remember { mutableStateOf(0) }
-    var selectedOverviewRange by remember { mutableStateOf(OverviewRange.TODAY) }
-    var selectedPopularityCategory by remember { mutableStateOf<String?>(null) }
-    val db = FirebaseFirestore.getInstance()
-    val chatGPTService = remember { ChatGPTService() }
+    //remember = data will not change if update UI
+    var purchaseHistory by remember { mutableStateOf(listOf<PurchaseRecord>()) } // list that will hold all the order records, if the list change, update screen automatic
+    var isLoading by remember { mutableStateOf(true) } //if the data is complete load, it will turn to false
+    var selectedTab by remember { mutableStateOf(0) } //0 means the first tab is active when the screen starts.
+    var selectedOverviewRange by remember { mutableStateOf(OverviewRange.TODAY) } //it starts as today
+    var selectedPopularityCategory by remember { mutableStateOf<String?>(null) } // stores which food category is selected for the popularity section, can be nothing selected yet
+    val db = FirebaseFirestore.getInstance() // connect to firestore
+    val chatGPTService = remember { ChatGPTService() } // creates ChatGPT helper for AI suggestion
     val allMenuItems = rememberMenuItems()
-    val categoriesFromMenu = remember(allMenuItems) { allMenuItems.map { it.category }.filter { it.isNotBlank() }.distinct() }
+    val categoriesFromMenu = remember(allMenuItems) { allMenuItems.map { it.category }.filter { it.isNotBlank() }.distinct() } //only do this again if allMenuItems changes,take category of item, remove empty category name, distinct=remove duplicate
     val categoriesFromHistory = remember(purchaseHistory) {
-        purchaseHistory.flatMap { it.items }
-            .map { it.category }
-            .filter { it.isNotBlank() }
-            .distinct()
+        purchaseHistory.flatMap { it.items } //Take all the items from all orders and make one big list
+            .map { it.category } // Take the category for each item
+            .filter { it.isNotBlank() } //Remove empty names
+            .distinct() //remove duplicates
     }
-    val categories = remember(categoriesFromMenu, categoriesFromHistory) {
+    // combines menu categories and history categories into one list
+    val categories = remember(categoriesFromMenu, categoriesFromHistory) { //Only updates if either categoriesFromMenu or categoriesFromHistory changes
         (categoriesFromMenu + categoriesFromHistory).distinct()
     }
 
@@ -97,32 +99,33 @@ fun AdminDashboardScreen(navController: NavController) {
     }
 
     // Compute dish popularity across all time (Overview uses range-specific filtering below)
-    val dishCountMapAll = remember(purchaseHistory) {
-        val map = mutableMapOf<String, Int>()
-        purchaseHistory.forEach { record ->
-            record.items.forEach { item ->
+    val dishCountMapAll = remember(purchaseHistory) { //  store how many of each dish was ordered,only re-calculate this if purchaseHistory changes
+        val map = mutableMapOf<String, Int>() // An empty map that connects key (dish name) and value (quantity)
+        purchaseHistory.forEach { record -> //Go through every purchase record
+            record.items.forEach { item -> // go through every item in that order
                 map[item.name] = map.getOrDefault(item.name, 0) + item.quantity
             }
         }
-        map
+        map //return map as result
     }
-    val nameToCategoryFromMenu = remember(allMenuItems) { allMenuItems.associate { it.name to it.category } }
-    val nameToCategoryFromHistory = remember(purchaseHistory) {
-        purchaseHistory.flatMap { it.items }
-            .filter { it.category.isNotBlank() }
-            .associate { it.name to it.category }
+    val nameToCategoryFromMenu = remember(allMenuItems) { allMenuItems.associate { it.name to it.category } } //turn list of menu item to map
+    val nameToCategoryFromHistory = remember(purchaseHistory) { //using purchase history
+        purchaseHistory.flatMap { it.items } //flatMap = take all orders and combine all their dishes into one big list
+            .filter { it.category.isNotBlank() } //removes any dish that has an empty category
+            .associate { it.name to it.category } //makes the map
     }
     val nameToCategory = remember(nameToCategoryFromMenu, nameToCategoryFromHistory) {
         // Prefer menu category; fall back to first seen in history
         nameToCategoryFromHistory + nameToCategoryFromMenu
     }
     val filteredDishCountMap = remember(selectedPopularityCategory, purchaseHistory, nameToCategory) {
-        if (selectedPopularityCategory == null) dishCountMapAll else {
-            val map = mutableMapOf<String, Int>()
+        if (selectedPopularityCategory == null) dishCountMapAll else { //doesn’t filter — just shows the full popularity list from dishCountMapAll
+            val map = mutableMapOf<String, Int>() //make an empty map for filtered results (dish name, quantity)
             purchaseHistory.forEach { record ->
                 record.items.forEach { item ->
+                    //use the category stored in the item (if it’s not empty),else tries to look up the category by dish name in nameToCategory,still nothing, it uses an empty string
                     val cat = if (item.category.isNotBlank()) item.category else nameToCategory[item.name] ?: ""
-                    if (cat == selectedPopularityCategory) {
+                    if (cat == selectedPopularityCategory) { // Only count items that match the selected category
                         map[item.name] = map.getOrDefault(item.name, 0) + item.quantity
                     }
                 }
@@ -234,7 +237,7 @@ fun AdminDashboardScreen(navController: NavController) {
                     }
                 }
                 1 -> { //user select tab 1
-                    ChatGPTComponent(chatGPTService, dashboardData) // Display the ChatGPT AI Assistant component
+                    ChatGPTWithSidebar(chatGPTService, dashboardData) // Display the ChatGPT AI Assistant component
                 }
             }
         }

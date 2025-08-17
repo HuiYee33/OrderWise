@@ -8,10 +8,10 @@ package com.example.orderwise2.ui
  */
 object ChatGPTConfig {
     // Replace this with your actual OpenAI API key
-    const val OPENAI_API_KEY = ""
+    const val OPENAI_API_KEY = "sk-5k23VrjHRIQeyNm6bCitZHkXVurOAFF7WnuP9GfJyeGLWQlU"
     
     // API Configuration
-    const val BASE_URL = "https://api.openai.com/"
+    const val BASE_URL = "https://api.chatanywhere.tech/v1/ "
     const val MODEL = "gpt-3.5-turbo"
     const val MAX_TOKENS = 1000
     const val TEMPERATURE = 0.7
@@ -23,7 +23,9 @@ object ChatGPTConfig {
     
     // System prompt for restaurant management context
     val SYSTEM_PROMPT = """
-        You are a helpful AI assistant for a restaurant management system. 
+        You are a helpful AI assistant for a restaurant management system with access to real-time sales and order data. 
+        When provided with restaurant data, use that specific information to answer questions about sales, orders, revenue, and business performance.
+        For questions about current sales, orders, or business metrics, always reference the provided data rather than giving generic advice.
         Provide concise, actionable advice for restaurant owners and managers.
         Focus on practical solutions, industry best practices, and data-driven insights.
         Keep responses professional, informative, and under 200 words unless specifically asked for more detail.

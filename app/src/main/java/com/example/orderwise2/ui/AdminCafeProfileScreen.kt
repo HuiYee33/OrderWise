@@ -35,12 +35,7 @@ data class OperatingHours(
     val isOpen: Boolean
 )
 
-data class SalesReport(
-    val period: String,
-    val totalSales: Double,
-    val totalOrders: Int,
-    val averageOrderValue: Double
-)
+// Sales report removed per request
 
 @Composable
 fun AdminCafeProfileScreen(navController: NavController) {
@@ -58,8 +53,7 @@ fun AdminCafeProfileScreen(navController: NavController) {
         )
     }
 
-    var salesReports by remember { mutableStateOf(listOf<SalesReport>()) }
-    var isLoadingSales by remember { mutableStateOf(true) }
+    // Sales reports removed per request
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance() //connect to cloud firestore
     val webClientId = "1068919815592-dmloavrch01uahvhrl9iaaddv57hov5c.apps.googleusercontent.com"
@@ -69,25 +63,7 @@ fun AdminCafeProfileScreen(navController: NavController) {
         .build() //finish setting up
     val googleSignInClient = GoogleSignIn.getClient(context, gso)
 
-    // Fetch purchase records and compute sales reports
-    LaunchedEffect(Unit) {
-        db.collection("purchaseHistory")
-            .get()
-            .addOnSuccessListener { result ->
-                val records = mutableListOf<PurchaseRecord>()
-                for (doc in result) {
-                    try {
-                        val record = doc.toObject(PurchaseRecord::class.java).copy(id = doc.id)
-                        records.add(record)
-                    } catch (_: Exception) {}
-                }
-                salesReports = computeSalesReports(records)
-                isLoadingSales = false
-            }
-            .addOnFailureListener {
-                isLoadingSales = false
-            }
-    }
+    // Sales report loading removed per request
 
     var showEditDialog by remember { mutableStateOf(false) }
 
@@ -175,35 +151,7 @@ fun AdminCafeProfileScreen(navController: NavController) {
                 }
             }
 
-            item {
-                // Sales Reports Card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(4.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text(
-                            "Sales Reports",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        if (isLoadingSales) { //check if the app still fetching data
-                            CircularProgressIndicator() //shows the loading spinner
-                        } else {
-                            salesReports.forEach { report -> //loop all item in sales report and each item store temporarily in report
-                                SalesReportRow(report) //display sales report
-                                if (report != salesReports.last()) { //if there is not the last report
-                                    Spacer(modifier = Modifier.height(8.dp)) // add the space(line spacing)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            // Sales Reports card removed per request
 
             item {
                 Button(
@@ -306,55 +254,7 @@ fun OperatingHoursRow(hours: OperatingHours) {
     }
 }
 
-@Composable
-fun SalesReportRow(report: SalesReport) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            Text(
-                report.period,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        "Total Sales",
-                        fontSize = 12.sp,
-                        color = Color.Black
-                    )
-                    Text(
-                        "RM ${String.format("%.2f", report.totalSales)}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4CAF50)
-                    )
-                }
-                Column {
-                    Text(
-                        "Orders",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Text(
-                        report.totalOrders.toString(),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
+// SalesReportRow removed per request
 
 @Composable
 fun EditProfileDialog(
@@ -440,75 +340,4 @@ fun EditProfileDialog(
     )
 }
 
-fun computeSalesReports(records: List<PurchaseRecord>): List<SalesReport> {
-    val now = Date()
-    val cal = Calendar.getInstance()
-    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val todayStr = sdf.format(now)
-    cal.time = now
-    val weekStart = cal.apply { set(Calendar.DAY_OF_WEEK, firstDayOfWeek) }.time
-    val weekStartStr = sdf.format(weekStart)
-    cal.time = now
-    cal.set(Calendar.DAY_OF_MONTH, 1)
-    val monthStart = cal.time
-    val monthStartStr = sdf.format(monthStart)
-    cal.add(Calendar.MONTH, -1)
-    val lastMonth = cal.time
-    cal.set(Calendar.DAY_OF_MONTH, 1)
-    val lastMonthStart = cal.time
-    val lastMonthStartStr = sdf.format(lastMonthStart)
-    cal.add(Calendar.MONTH, 1)
-    val lastMonthEnd = cal.time
-    val lastMonthEndStr = sdf.format(lastMonthEnd)
-
-    fun filterByDateRange(start: String, end: String): List<PurchaseRecord> {
-        val startDate = sdf.parse(start)
-        val endDate = sdf.parse(end)
-        return records.filter {
-            val datePart = it.date.take(10)
-            val d = try { sdf.parse(datePart) } catch (_: Exception) { null }
-            d != null && !d.before(startDate) && !d.after(endDate)
-        }
-    }
-
-    // Today
-    val todayRecords = records.filter { it.date.startsWith(todayStr) }
-    // This Week
-    val weekRecords = records.filter {
-        val datePart = it.date.take(10)
-        try {
-            val d = sdf.parse(datePart)
-            d != null && !d.before(weekStart)
-        } catch (_: Exception) { false }
-    }
-    // This Month
-    val monthRecords = records.filter {
-        val datePart = it.date.take(10)
-        try {
-            val d = sdf.parse(datePart)
-            d != null && !d.before(monthStart)
-        } catch (_: Exception) { false }
-    }
-    // Last Month
-    val lastMonthRecords = records.filter {
-        val datePart = it.date.take(10)
-        try {
-            val d = sdf.parse(datePart)
-            d != null && !d.before(lastMonthStart) && d.before(monthStart)
-        } catch (_: Exception) { false }
-    }
-
-    fun makeReport(period: String, recs: List<PurchaseRecord>): SalesReport {
-        val totalSales = recs.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
-        val totalOrders = recs.size
-        val avgOrder = if (totalOrders > 0) totalSales / totalOrders else 0.0
-        return SalesReport(period, totalSales, totalOrders, avgOrder)
-    }
-
-    return listOf(
-        makeReport("Today", todayRecords),
-        makeReport("This Week", weekRecords),
-        makeReport("This Month", monthRecords),
-        makeReport("Last Month", lastMonthRecords)
-    )
-} 
+// computeSalesReports removed per request
