@@ -63,7 +63,7 @@ fun LoginScreen(navController: NavController) {
                     if (authResult.isSuccessful) {
                         val user = FirebaseAuth.getInstance().currentUser
                         val email = user?.email
-                        val adminEmail = "huiyee.khor@qiu.edu.my" // TODO: Replace with your admin Gmail address
+                        val adminEmail = "huiyee.khor@qiu.edu.my"
                         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                         if (email == adminEmail) {
                             navController.navigate(Screen.AdminDashboard.route) {
@@ -79,7 +79,7 @@ fun LoginScreen(navController: NavController) {
                                             popUpTo(Screen.Login.route) { inclusive = true }
                                         }
                                     } else {
-                                        navController.navigate(Screen.MenuHome.route) {
+                                        navController.navigate(Screen.Home.route) {
                                             popUpTo(Screen.Login.route) { inclusive = true }
                                         }
                                     }

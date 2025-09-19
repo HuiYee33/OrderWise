@@ -7,7 +7,6 @@ package com.example.orderwise2.ui
  * You can get one from: https://platform.openai.com/api-keys
  */
 object ChatGPTConfig {
-    // Replace this with your actual OpenAI API key
     const val OPENAI_API_KEY = "sk-5k23VrjHRIQeyNm6bCitZHkXVurOAFF7WnuP9GfJyeGLWQlU"
     
     // API Configuration
