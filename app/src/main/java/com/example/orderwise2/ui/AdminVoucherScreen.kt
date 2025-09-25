@@ -8,10 +8,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun AdminVoucherScreen(navController: NavController) {
 	val repo = remember { VoucherRepository() }
+    var editVoucherId by remember { mutableStateOf<String?>(null) }
 	var title by remember { mutableStateOf("") }
 	var code by remember { mutableStateOf("") }
 	var points by remember { mutableStateOf("") }
@@ -19,10 +21,29 @@ fun AdminVoucherScreen(navController: NavController) {
 	var discountType by remember { mutableStateOf("amount") }
 	var isActive by remember { mutableStateOf(true) }
 	var statusText by remember { mutableStateOf("") }
-	var isButtonEnabled by remember { mutableStateOf(true) }
+    var isButtonEnabled by remember { mutableStateOf(true) }
+
+    // read voucherId from nav args and prefill
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(backStackEntry) {
+        val param = backStackEntry?.arguments?.getString("voucherId").orEmpty()
+        if (param.isNotBlank()) {
+            editVoucherId = param
+            repo.getVoucher(param) { v ->
+                if (v != null) {
+                    title = v.title
+                    code = v.code
+                    points = v.pointsRequired.toString()
+                    discountType = v.discountType
+                    discountValue = v.discountValue.toString()
+                    isActive = v.isActive
+                }
+            }
+        }
+    }
 
 	Column(Modifier.fillMaxSize().padding(16.dp)) {
-		Text("Create Voucher", style = MaterialTheme.typography.titleLarge)
+		Text(if (editVoucherId == null) "Create Voucher" else "Edit Voucher", style = MaterialTheme.typography.titleLarge)
 		Spacer(Modifier.height(12.dp))
 		OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
 		Spacer(Modifier.height(8.dp))
@@ -46,6 +67,7 @@ fun AdminVoucherScreen(navController: NavController) {
 		Button(
 			onClick = {
 				val voucher = Voucher(
+					id = editVoucherId ?: "",
 					title = title.trim(),
 					code = code.trim(),
 					pointsRequired = points.toIntOrNull() ?: 0,
@@ -53,18 +75,19 @@ fun AdminVoucherScreen(navController: NavController) {
 					discountValue = discountValue.toDoubleOrNull() ?: 0.0,
 					isActive = isActive
 				)
-				repo.createVoucher(voucher) { ok ->
+				val action = if (editVoucherId == null) repo::createVoucher else repo::updateVoucher
+				action(voucher) { ok ->
 					if (ok) {
-						statusText = "Voucher created"
-						isButtonEnabled = false   // 🔒 disable button
+						statusText = if (editVoucherId == null) "Voucher created" else "Voucher updated"
+						isButtonEnabled = false
 					} else {
-						statusText = "Failed to create"
+						statusText = "Failed to save"
 					}
 				}
 			},
 			enabled = isButtonEnabled   // ✅ control if button clickable
 		) {
-			Text("Save Voucher")
+            Text("Save Voucher")
 		}
 
 		Spacer(Modifier.height(8.dp))

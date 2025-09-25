@@ -203,9 +203,10 @@ fun ChatGPTComponent(
                                         - Total Orders: ${dashboardData.totalOrders}
                                         - Total Items Sold: ${dashboardData.totalItems}
                                         - Total Revenue: RM ${String.format("%.2f", dashboardData.revenue)}
+                                        - Total Customers: ${dashboardData.totalCustomers}
                                         - Top Dishes: ${dashboardData.dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
                                         
-                                        Please use this data to answer questions about sales, orders, and business performance.
+                                        Please use this data to answer questions about sales, orders,users and business performance.
                                         """.trimIndent()
                                     } else ""
                                     
@@ -244,6 +245,7 @@ fun ChatGPTComponent(
                                     - Total Orders: ${dashboardData.totalOrders}
                                     - Total Items Sold: ${dashboardData.totalItems}
                                     - Total Revenue: RM ${String.format("%.2f", dashboardData.revenue)}
+                                    - Total Customers: ${dashboardData.totalCustomers}
                                     - Top Dishes: ${dashboardData.dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
                                     
                                     Please use this data to answer questions about sales, orders, and business performance.
@@ -331,5 +333,6 @@ data class DashboardData(
     val totalOrders: Int,
     val totalItems: Int,
     val revenue: Double,
-    val dishStats: List<DishStats>
+    val dishStats: List<DishStats>,
+    val totalCustomers: Int
 ) 

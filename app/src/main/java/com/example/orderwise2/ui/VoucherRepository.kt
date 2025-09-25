@@ -14,6 +14,24 @@ class VoucherRepository(private val db: FirebaseFirestore = FirebaseFirestore.ge
 			.addOnFailureListener { onComplete(false) }
 	}
 
+	fun updateVoucher(voucher: Voucher, onComplete: (Boolean) -> Unit) {
+		if (voucher.id.isBlank()) {
+			onComplete(false)
+			return
+		}
+		db.collection("vouchers").document(voucher.id)
+			.set(voucher)
+			.addOnSuccessListener { onComplete(true) }
+			.addOnFailureListener { onComplete(false) }
+	}
+
+	fun deleteVoucher(id: String, callback: (Boolean) -> Unit) {
+		db.collection("vouchers").document(id)
+			.delete()
+			.addOnSuccessListener { callback(true) }
+			.addOnFailureListener { callback(false) }
+	}
+
 	fun loadActiveVouchers(onResult: (List<Voucher>) -> Unit) {
 		db.collection("vouchers")
 			.whereEqualTo("isActive", true)
@@ -23,6 +41,25 @@ class VoucherRepository(private val db: FirebaseFirestore = FirebaseFirestore.ge
 				onResult(list)
 			}
 			.addOnFailureListener { onResult(emptyList()) }
+	}
+
+	fun listenAllVouchers(onResult: (List<Voucher>) -> Unit): com.google.firebase.firestore.ListenerRegistration {
+		return db.collection("vouchers")
+			.addSnapshotListener { snap, _ ->
+				if (snap == null) {
+					onResult(emptyList())
+					return@addSnapshotListener
+				}
+				val list = snap.documents.mapNotNull { it.toObject(Voucher::class.java) }
+				onResult(list)
+			}
+	}
+
+	fun getVoucher(id: String, onResult: (Voucher?) -> Unit) {
+		db.collection("vouchers").document(id)
+			.get()
+			.addOnSuccessListener { doc -> onResult(doc.toObject(Voucher::class.java)) }
+			.addOnFailureListener { onResult(null) }
 	}
 
 	fun redeemVoucher(voucher: Voucher, onComplete: (Boolean) -> Unit) {

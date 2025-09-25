@@ -77,7 +77,14 @@ fun OrderWiseNavGraph(navController: NavHostController, startDestination: String
         }
 
         composable(Screen.RedeemVoucher.route) { RedeemVoucherScreen(navController) }
-        composable("admin_voucher") { AdminVoucherScreen(navController) }
+        composable(
+            route = "admin_voucher?voucherId={voucherId}",
+            arguments = listOf(
+                navArgument("voucherId") { type = NavType.StringType; defaultValue = "" }
+            )
+        ) { backStackEntry ->
+            AdminVoucherScreen(navController)
+        }
 
         // Admin screens here
         composable(
@@ -93,7 +100,9 @@ fun OrderWiseNavGraph(navController: NavHostController, startDestination: String
         composable(Screen.AdminMenu.route) { AdminMenuScreen(navController) }
         composable(Screen.AdminReview.route) { AdminReviewScreen(navController) }
         composable(Screen.AdminCafeProfile.route) { AdminCafeProfileScreen(navController) }
-        composable(Screen.AdminVoucher.route) { AdminVoucherScreen(navController) }
+        composable(Screen.ManageVoucher.route) { ManageVoucherScreen(navController) }
+
+
         // Add complete profile route
         composable("complete_profile") { CompleteProfileScreen(navController) }
         composable(Screen.PaymentMethod.route) { 

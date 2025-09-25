@@ -254,7 +254,6 @@ fun OperatingHoursRow(hours: OperatingHours) {
     }
 }
 
-// SalesReportRow removed per request
 
 @Composable
 fun EditProfileDialog(
@@ -340,4 +339,3 @@ fun EditProfileDialog(
     )
 }
 
-// computeSalesReports removed per request

@@ -132,14 +132,18 @@ class ChatGPTService {
     suspend fun generateDashboardInsights(
         totalOrders: Int,
         totalItems: Int,
+        totalCustomers: Int,
         revenue: Double,
         dishStats: List<DishStats>
+
     ): Result<String> {
         val context = """
             Restaurant Dashboard Data:
             - Total Orders: $totalOrders
             - Total Items Sold: $totalItems
+            - Total Customers: $totalCustomers
             - Total Revenue: RM ${String.format("%.2f", revenue)}
+            
             - Top Dishes: ${dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
         """.trimIndent()
         

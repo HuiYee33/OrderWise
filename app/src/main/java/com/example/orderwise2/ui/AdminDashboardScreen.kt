@@ -96,7 +96,20 @@ fun AdminDashboardScreen(navController: NavController) {
                 Log.e("AdminDashboard", "Failed to load purchase history", e)
                 isLoading = false
             }
+
     }
+    var totalCustomers by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        db.collection("users") // replace "users" with your actual customer collection name
+            .get()
+            .addOnSuccessListener { result ->
+                totalCustomers = result.size() // number of customer documents
+            }
+            .addOnFailureListener { e ->
+                Log.e("AdminDashboard", "Failed to load customers", e)
+            }
+    }
+
 
     // Compute dish popularity across all time (Overview uses range-specific filtering below)
     val dishCountMapAll = remember(purchaseHistory) { //  store how many of each dish was ordered,only re-calculate this if purchaseHistory changes
@@ -166,7 +179,9 @@ fun AdminDashboardScreen(navController: NavController) {
     val overallOrders = purchaseHistory.size
     val overallItems = purchaseHistory.sumOf { it.items.sumOf { item -> item.quantity } }
     val overallRevenue = purchaseHistory.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
-    val dashboardData = DashboardData(overallOrders, overallItems, overallRevenue, dishStats)
+
+
+    val dashboardData = DashboardData(overallOrders, overallItems, overallRevenue, dishStats,totalCustomers)
 
     Scaffold(
         bottomBar = { AdminBottomNavigation(navController) }

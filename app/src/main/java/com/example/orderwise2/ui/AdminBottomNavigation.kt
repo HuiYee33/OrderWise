@@ -35,7 +35,7 @@ sealed class AdminBottomNavItem(
     )
 
     object Voucher : AdminBottomNavItem(
-        route = Screen.AdminVoucher.route,
+        route = Screen.ManageVoucher.route,
         title = "Voucher",
         icon = Icons.Default.Discount
     )
