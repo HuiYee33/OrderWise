@@ -63,9 +63,12 @@ fun LoginScreen(navController: NavController) {
                     if (authResult.isSuccessful) {
                         val user = FirebaseAuth.getInstance().currentUser
                         val email = user?.email
-                        val adminEmail = "huiyee.khor@qiu.edu.my"
+                        val adminEmail = listOf(
+                            "huiyee.khor@qiu.edu.my",
+                            "jianhau999@gmail.com"
+                        )
                         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                        if (email == adminEmail) {
+                        if (email in adminEmail) {
                             navController.navigate(Screen.AdminDashboard.route) {
                                 popUpTo(Screen.Login.route) { inclusive = true }
                             }

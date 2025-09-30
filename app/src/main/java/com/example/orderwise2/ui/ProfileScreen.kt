@@ -15,6 +15,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.firestore.FirebaseFirestore
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,11 +47,9 @@ fun ProfileScreen(navController: NavController) {
                 }
                 .addOnFailureListener {
                     isLoading = false
-                    // Handle failure
                 }
         } else {
             isLoading = false
-            // Handle case where user is not logged in
         }
     }
 
@@ -59,6 +59,7 @@ fun ProfileScreen(navController: NavController) {
         .requestEmail()
         .build()
     val googleSignInClient = GoogleSignIn.getClient(context, gso)
+
     Scaffold(
         bottomBar = { UserBottomNavigation(navController) }
     ) { paddingValues ->
@@ -85,7 +86,10 @@ fun ProfileScreen(navController: NavController) {
                         Text("Email: ${userProfile!!.email}")
                         Text("Name: ${userProfile!!.name}")
                         Text("Phone: ${userProfile!!.phone}")
-                        Text("Loyalty Points: ${userProfile!!.loyaltyPoints}", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Loyalty Points: ${userProfile!!.loyaltyPoints}",
+                            fontWeight = FontWeight.SemiBold
+                        )
                         Spacer(Modifier.height(8.dp))
                         Button(
                             onClick = {
@@ -105,16 +109,12 @@ fun ProfileScreen(navController: NavController) {
                     onClick = { navController.navigate(Screen.RedeemVoucher.route) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Redeem Vouchers")
-                }
+                ) { Text("Redeem Vouchers") }
                 OutlinedButton(
                     onClick = { navController.navigate(Screen.PurchaseHistory.route) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("View Purchase History")
-                }
+                ) { Text("View Purchase History") }
                 Button(
                     onClick = {
                         googleSignInClient.signOut().addOnCompleteListener {
@@ -127,9 +127,7 @@ fun ProfileScreen(navController: NavController) {
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Log Out")
-                }
+                ) { Text("Log Out") }
             } else {
                 Text("Unable to load profile. Please try again.")
             }
@@ -137,6 +135,8 @@ fun ProfileScreen(navController: NavController) {
     }
 
     if (showEditDialog && userProfile != null) {
+        val isPhoneValid = editPhone.length in 10..12
+
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
             title = { Text("Edit Profile") },
@@ -151,10 +151,23 @@ fun ProfileScreen(navController: NavController) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = editPhone,
-                        onValueChange = { editPhone = it },
+                        onValueChange = { input ->
+                            val filtered = input.filter { it.isDigit() }
+                            if (filtered.length <= 12) {
+                                editPhone = filtered
+                            }
+                        },
                         label = { Text("Phone") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
+                    if (editPhone.isNotEmpty() && !isPhoneValid) {
+                        Text(
+                            text = "Phone number must be 10–12 digits.",
+                            color = Color.Red,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -170,7 +183,8 @@ fun ProfileScreen(navController: NavController) {
                                 userProfile = userProfile!!.copy(name = editName, phone = editPhone)
                                 showEditDialog = false
                             }
-                    }
+                    },
+                    enabled = editName.isNotBlank() && isPhoneValid
                 ) { Text("Save") }
             },
             dismissButton = {
@@ -178,4 +192,4 @@ fun ProfileScreen(navController: NavController) {
             }
         )
     }
-} 
+}

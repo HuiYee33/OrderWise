@@ -9,6 +9,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 
 // CompleteProfileScreen: Screen for users to complete their profile information
 @Composable
@@ -47,14 +49,25 @@ fun CompleteProfileScreen(navController: NavController) {
         OutlinedTextField(
             value = phone,
             onValueChange = { newValue ->
-                // Only allow digits
-                if (newValue.all { it.isDigit() }) {
-                    phone = newValue
+                // Allow only digits and max length 12
+                val filtered = newValue.filter { it.isDigit() }
+                if (filtered.length <= 12) {
+                    phone = filtered
                 }
             },
             label = { Text("Phone Number") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
+
+        // Optional: show error if less than 10 digits
+        if (phone.isNotEmpty() && phone.length < 10) {
+            Text(
+                text = "Phone number must be between 10–12 digits.",
+                color = Color.Red,
+                fontSize = 12.sp
+            )
+        }
         Spacer(Modifier.height(16.dp))
         if (errorMessage != null) {
             Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
