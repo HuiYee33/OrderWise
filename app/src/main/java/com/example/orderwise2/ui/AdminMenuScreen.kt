@@ -49,6 +49,7 @@ import android.util.Log
 import java.util.UUID
 import android.content.Intent
 import com.example.orderwise2.ui.CloudinaryManager
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 data class MenuItem(
     val id: String = "",
@@ -304,6 +305,7 @@ fun MenuItemCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MenuItemDialog(
     item: MenuItem?,
@@ -313,7 +315,7 @@ fun MenuItemDialog(
     var name by remember { mutableStateOf(item?.name ?: "") }
     var price by remember { mutableStateOf(item?.price?.toString() ?: "") }
     var description by remember { mutableStateOf(item?.description ?: "") }
-    var category by remember { mutableStateOf(item?.category ?: "Main Course") }
+    var category by remember { mutableStateOf(item?.category ?: "Main course") }
     var ingredients by remember { mutableStateOf(item?.ingredients ?: "") }
     var stockStatus by remember { mutableStateOf(item?.stockStatus ?: StockStatus.AVAILABLE) }
     var imageUri by remember { mutableStateOf(item?.imageUri ?: "") }
@@ -332,6 +334,10 @@ fun MenuItemDialog(
             }
         )
     }
+
+    // Category dropdown state and options
+    val categoryOptions = listOf("Main course", "Soup", "Beverage", "Dessert")
+    var isCategoryMenuExpanded by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -422,12 +428,37 @@ fun MenuItemDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = category,
-                    onValueChange = { category = it },
-                    label = { Text("Category") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+
+                // Category dropdown (exposed)
+                Text("Category", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                ExposedDropdownMenuBox(
+                    expanded = isCategoryMenuExpanded,
+                    onExpandedChange = { isCategoryMenuExpanded = !isCategoryMenuExpanded }
+                ) {
+                    TextField(
+                        value = category,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isCategoryMenuExpanded) }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = isCategoryMenuExpanded,
+                        onDismissRequest = { isCategoryMenuExpanded = false }
+                    ) {
+                        categoryOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    category = option
+                                    isCategoryMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = ingredients,

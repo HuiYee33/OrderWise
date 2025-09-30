@@ -24,6 +24,8 @@ import com.example.orderwise2.ui.StockStatus
 import com.example.orderwise2.ui.rememberMenuItems
 import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 
 // MenuHomeScreen: Displays the main menu for users to browse food items
 @Composable
@@ -39,18 +41,20 @@ fun MenuHomeScreen(navController: NavController) {
         Column(modifier = Modifier.padding(innerPadding)) {
             // Category filter row
             if (categories.isNotEmpty()) {
-                Row(
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FilterChip(
-                        selected = selectedCategory == null,
-                        onClick = { selectedCategory = null },
-                        label = { Text("All") }
-                    )
-                    categories.forEach { category ->
+                    item {
+                        FilterChip(
+                            selected = selectedCategory == null,
+                            onClick = { selectedCategory = null },
+                            label = { Text("All") }
+                        )
+                    }
+                    items(categories) { category ->
                         FilterChip(
                             selected = selectedCategory == category,
                             onClick = { selectedCategory = category },

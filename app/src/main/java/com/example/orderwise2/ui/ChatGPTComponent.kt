@@ -195,31 +195,47 @@ fun ChatGPTComponent(
                                     messages = updatedUser
                                     onMessagesChange?.invoke(updatedUser)
                                     inputText = ""
-                                    isLoading = true
 
-                                    val context = if (dashboardData != null) {
-                                        """
-                                        Current Restaurant Data:
-                                        - Total Orders: ${dashboardData.totalOrders}
-                                        - Total Items Sold: ${dashboardData.totalItems}
-                                        - Total Revenue: RM ${String.format("%.2f", dashboardData.revenue)}
-                                        - Total Customers: ${dashboardData.totalCustomers}
-                                        - Top Dishes: ${dashboardData.dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
-                                        
-                                        Please use this data to answer questions about sales, orders,users and business performance.
-                                        """.trimIndent()
-                                    } else ""
+                                    // Intercept 'sales today' queries and answer locally
+                                    val lower = userMessage.lowercase()
+                                    val isTodayQuery = listOf(
+                                        "sales today", "today sales", "today's sales", "revenue today", "today revenue",
+                                        "sales for today", "how much did we make today", "what are today's sales", "todays sales"
+                                    ).any { lower.contains(it) }
 
-                                    chatGPTService.sendMessage(userMessage, context).onSuccess { response ->
-                                        val updated = messages + UIChatMessage(response, false)
+                                    if (isTodayQuery && dashboardData != null) {
+                                        val reply = "Today's sales is RM ${String.format("%.2f", dashboardData.todaysRevenue)}."
+                                        val updated = messages + UIChatMessage(reply, false)
                                         messages = updated
                                         onMessagesChange?.invoke(updated)
-                                    }.onFailure { error ->
-                                        val updated = messages + UIChatMessage("Sorry, I couldn't process your request. Please try again.", false)
-                                        messages = updated
-                                        onMessagesChange?.invoke(updated)
+                                    } else {
+                                        isLoading = true
+                                        val context = if (dashboardData != null) {
+                                            """
+                                            Current Restaurant Data:
+                                            - Total Orders: ${dashboardData.totalOrders}
+                                            - Total Items Sold: ${dashboardData.totalItems}
+                                            - Total Revenue: RM ${String.format("%.2f", dashboardData.revenue)}
+                                            - Total Customers: ${dashboardData.totalCustomers}
+                                            - Top Dishes: ${dashboardData.dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
+                                            - Today's Revenue: RM ${String.format("%.2f", dashboardData.todaysRevenue)}
+
+                                            If the user asks for today's sales/revenue, answer with Today's Revenue only, not the total.provide 3-4 key insights and recommendations for the restaurant owner. 
+            Focus on business opportunities, trends, and actionable advice.
+                                            """.trimIndent()
+                                        } else ""
+
+                                        chatGPTService.sendMessage(userMessage, context).onSuccess { response ->
+                                            val updated = messages + UIChatMessage(response, false)
+                                            messages = updated
+                                            onMessagesChange?.invoke(updated)
+                                        }.onFailure { _ ->
+                                            val updated = messages + UIChatMessage("Sorry, I couldn't process your request. Please try again.", false)
+                                            messages = updated
+                                            onMessagesChange?.invoke(updated)
+                                        }
+                                        isLoading = false
                                     }
-                                    isLoading = false
                                 }
                             }
                         }
@@ -237,31 +253,47 @@ fun ChatGPTComponent(
                                 messages = updatedUser
                                 onMessagesChange?.invoke(updatedUser)
                                 inputText = ""
-                                isLoading = true
 
-                                val context = if (dashboardData != null) {
-                                    """
-                                    Current Restaurant Data:
-                                    - Total Orders: ${dashboardData.totalOrders}
-                                    - Total Items Sold: ${dashboardData.totalItems}
-                                    - Total Revenue: RM ${String.format("%.2f", dashboardData.revenue)}
-                                    - Total Customers: ${dashboardData.totalCustomers}
-                                    - Top Dishes: ${dashboardData.dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
-                                    
-                                    Please use this data to answer questions about sales, orders, and business performance.
-                                    """.trimIndent()
-                                } else ""
+                                // Intercept 'sales today' queries and answer locally
+                                val lower = userMessage.lowercase()
+                                val isTodayQuery = listOf(
+                                    "sales today", "today sales", "today's sales", "revenue today", "today revenue",
+                                    "sales for today", "how much did we make today", "what are today's sales", "todays sales"
+                                ).any { lower.contains(it) }
 
-                                chatGPTService.sendMessage(userMessage, context).onSuccess { response ->
-                                    val updated = messages + UIChatMessage(response, false)
+                                if (isTodayQuery && dashboardData != null) {
+                                    val reply = "Today's sales is RM ${String.format("%.2f", dashboardData.todaysRevenue)}."
+                                    val updated = messages + UIChatMessage(reply, false)
                                     messages = updated
                                     onMessagesChange?.invoke(updated)
-                                }.onFailure { error ->
-                                    val updated = messages + UIChatMessage("Sorry, I couldn't process your request. Please try again.", false)
-                                    messages = updated
-                                    onMessagesChange?.invoke(updated)
+                                } else {
+                                    isLoading = true
+                                    val context = if (dashboardData != null) {
+                                        """
+                                        Current Restaurant Data:
+                                        - Total Orders: ${dashboardData.totalOrders}
+                                        - Total Items Sold: ${dashboardData.totalItems}
+                                        - Total Revenue: RM ${String.format("%.2f", dashboardData.revenue)}
+                                        - Total Customers: ${dashboardData.totalCustomers}
+                                        - Top Dishes: ${dashboardData.dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
+                                        - Today's Revenue: RM ${String.format("%.2f", dashboardData.todaysRevenue)}
+
+                                        If the user asks for today's sales/revenue, answer with Today's Revenue only, not the total.provide 3-4 key insights and recommendations for the restaurant owner. 
+            Focus on business opportunities, trends, and actionable advice.
+                                        """.trimIndent()
+                                    } else ""
+
+                                    chatGPTService.sendMessage(userMessage, context).onSuccess { response ->
+                                        val updated = messages + UIChatMessage(response, false)
+                                        messages = updated
+                                        onMessagesChange?.invoke(updated)
+                                    }.onFailure { _ ->
+                                        val updated = messages + UIChatMessage("Sorry, I couldn't process your request. Please try again.", false)
+                                        messages = updated
+                                        onMessagesChange?.invoke(updated)
+                                    }
+                                    isLoading = false
                                 }
-                                isLoading = false
                             }
                         }
                     }
@@ -334,5 +366,6 @@ data class DashboardData(
     val totalItems: Int,
     val revenue: Double,
     val dishStats: List<DishStats>,
-    val totalCustomers: Int
+    val totalCustomers: Int,
+    val todaysRevenue: Double
 )

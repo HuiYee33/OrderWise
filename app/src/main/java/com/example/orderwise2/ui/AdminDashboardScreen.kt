@@ -180,8 +180,13 @@ fun AdminDashboardScreen(navController: NavController) {
     val overallItems = purchaseHistory.sumOf { it.items.sumOf { item -> item.quantity } }
     val overallRevenue = purchaseHistory.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
 
+    // Today's revenue for AI assistant
+    val todaysRevenue = remember(purchaseHistory) {
+        val todayRecords = filterHistoryByRange(purchaseHistory, OverviewRange.TODAY)
+        todayRecords.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
+    }
 
-    val dashboardData = DashboardData(overallOrders, overallItems, overallRevenue, dishStats,totalCustomers)
+    val dashboardData = DashboardData(overallOrders, overallItems, overallRevenue, dishStats,totalCustomers, todaysRevenue)
 
     Scaffold(
         bottomBar = { AdminBottomNavigation(navController) }
@@ -412,7 +417,8 @@ fun DishPopularityItem(dish: DishStats) {
                 .size(12.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(dish.color)
-        )
+        ) {
+        }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             dish.name,
@@ -436,7 +442,7 @@ fun DishPopularityItem(dish: DishStats) {
             modifier = Modifier
                 .width(60.dp)
                 .height(8.dp)
-                .clip(RoundedCornerShape(4.dp))
+            	.clip(RoundedCornerShape(4.dp))
                 .background(Color.LightGray)
         ) {
             Box(
@@ -511,30 +517,6 @@ private fun FilterChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(text = text, color = if (isSelected) Color.White else Color.Black, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun CategoryFilterSelector(
-    categories: List<String>,
-    selected: String?,
-    onChange: (String?) -> Unit
-) {
-    Column {
-        Text("Category", fontSize = 12.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(4.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item {
-                FilterChip(text = "Overall", isSelected = selected == null) { onChange(null) }
-            }
-            if (categories.isEmpty()) {
-                item { Text("No categories found", color = Color.Gray, fontSize = 12.sp) }
-            } else {
-                items(categories) { cat ->
-                    FilterChip(text = cat, isSelected = selected == cat) { onChange(cat) }
-                }
-            }
-        }
     }
 }
 
@@ -628,6 +610,30 @@ fun PreOrderItem(order: PreOrder) {
                     fontSize = 12.sp,
                     color = Color.Gray
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryFilterSelector(
+    categories: List<String>,
+    selected: String?,
+    onChange: (String?) -> Unit
+) {
+    Column {
+        Text("Category", fontSize = 12.sp, color = Color.Gray)
+        Spacer(modifier = Modifier.height(4.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(text = "Overall", isSelected = selected == null) { onChange(null) }
+            }
+            if (categories.isEmpty()) {
+                item { Text("No categories found", color = Color.Gray, fontSize = 12.sp) }
+            } else {
+                items(categories) { cat ->
+                    FilterChip(text = cat, isSelected = selected == cat) { onChange(cat) }
+                }
             }
         }
     }
