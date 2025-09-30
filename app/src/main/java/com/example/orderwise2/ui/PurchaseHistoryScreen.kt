@@ -57,6 +57,33 @@ fun PurchaseHistoryScreen(navController: NavController, cartViewModel: CartViewM
                         }
                     }
 
+                    // Admin Reply (if any)
+                    if (!record.adminReply.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Text(
+                                    "Admin Reply:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1976D2)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    record.adminReply ?: "",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF1976D2)
+                                )
+                            }
+                        }
+                    }
+
                     // Check if the feedback has already been submitted (not empty)
                     val isFeedbackSubmitted = record.feedback.isNotBlank()
 

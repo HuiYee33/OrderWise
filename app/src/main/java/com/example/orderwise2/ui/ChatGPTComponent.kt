@@ -92,8 +92,8 @@ fun ChatGPTWithSidebar(chatGPTService: ChatGPTService, dashboardData: DashboardD
                         dashboardData = dashboardData,
                         messagesExternal = chatHistory.getOrNull(selectedChatIndex) ?: listOf(),
                         onMessagesChange = { updated ->
-                            chatHistory = chatHistory.toMutableList().also { 
-                                if (it.isEmpty()) it.add(updated) else it[selectedChatIndex] = updated 
+                            chatHistory = chatHistory.toMutableList().also {
+                                if (it.isEmpty()) it.add(updated) else it[selectedChatIndex] = updated
                             }
                         }
                     )
@@ -196,7 +196,7 @@ fun ChatGPTComponent(
                                     onMessagesChange?.invoke(updatedUser)
                                     inputText = ""
                                     isLoading = true
-                                    
+
                                     val context = if (dashboardData != null) {
                                         """
                                         Current Restaurant Data:
@@ -209,7 +209,7 @@ fun ChatGPTComponent(
                                         Please use this data to answer questions about sales, orders,users and business performance.
                                         """.trimIndent()
                                     } else ""
-                                    
+
                                     chatGPTService.sendMessage(userMessage, context).onSuccess { response ->
                                         val updated = messages + UIChatMessage(response, false)
                                         messages = updated
@@ -238,7 +238,7 @@ fun ChatGPTComponent(
                                 onMessagesChange?.invoke(updatedUser)
                                 inputText = ""
                                 isLoading = true
-                                
+
                                 val context = if (dashboardData != null) {
                                     """
                                     Current Restaurant Data:
@@ -251,7 +251,7 @@ fun ChatGPTComponent(
                                     Please use this data to answer questions about sales, orders, and business performance.
                                     """.trimIndent()
                                 } else ""
-                                
+
                                 chatGPTService.sendMessage(userMessage, context).onSuccess { response ->
                                     val updated = messages + UIChatMessage(response, false)
                                     messages = updated
@@ -277,7 +277,7 @@ fun ChatGPTComponent(
 fun ChatMessageItem(message: UIChatMessage) {
     val backgroundColor = if (message.isUser) Color(0xFF4CAF50) else Color.White
     val textColor = if (message.isUser) Color.White else Color.Black
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
@@ -335,4 +335,4 @@ data class DashboardData(
     val revenue: Double,
     val dishStats: List<DishStats>,
     val totalCustomers: Int
-) 
+)

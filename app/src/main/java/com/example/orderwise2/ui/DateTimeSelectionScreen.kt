@@ -43,10 +43,26 @@ fun DateTimeSelectionScreen(
         DateOption(tomorrowFormatted, tomorrow.time, false)
     )
 
-    val timeSlots = generateTimeSlots()
+    val allTimeSlots = generateTimeSlots()
 
     var selectedDateIndex by remember { mutableStateOf(0) } // 0 for today, 1 for tomorrow
-    var selectedTimeSlot by remember { mutableStateOf(timeSlots[1]) } // Default to 9:30-10:00
+    var selectedTimeSlot by remember { mutableStateOf<TimeSlot?>(null) }
+
+    // Compute available time slots based on selected date (filter out past times when Today is selected)
+    val availableTimeSlots by remember(selectedDateIndex) {
+        mutableStateOf(filterAvailableTimeSlotsForDate(selectedDateIndex, allTimeSlots))
+    }
+
+    // Ensure a valid selection exists whenever availableTimeSlots changes
+    LaunchedEffect(selectedDateIndex, availableTimeSlots) {
+        if (availableTimeSlots.isNotEmpty()) {
+            if (selectedTimeSlot !in availableTimeSlots) {
+                selectedTimeSlot = availableTimeSlots.first()
+            }
+        } else {
+            selectedTimeSlot = null
+        }
+    }
 
     // Update dates with selection state
     val updatedDates = dates.mapIndexed { index, dateOption ->
@@ -131,16 +147,25 @@ fun DateTimeSelectionScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
+            if (availableTimeSlots.isEmpty() && selectedDateIndex == 0) {
+                Text(
+                    text = "No time slots left today. Please select Tomorrow.",
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
             LazyColumn(
                 modifier = Modifier.height(400.dp)
             ) {
-                items(timeSlots) { timeSlot ->
+                items(availableTimeSlots) { timeSlot ->
                     TimeSlotItem(
                         timeSlot = timeSlot,
                         isSelected = timeSlot == selectedTimeSlot,
                         onClick = { selectedTimeSlot = timeSlot }
                     )
-                    if (timeSlot != timeSlots.last()) {
+                    if (timeSlot != availableTimeSlots.last()) {
                         Divider(
                             modifier = Modifier.padding(vertical = 8.dp),
                             color = Color.Gray.copy(alpha = 0.3f)
@@ -154,19 +179,23 @@ fun DateTimeSelectionScreen(
         Spacer(modifier = Modifier.weight(1f))
         Button(
             onClick = {
-                cartViewModel.setSelectedDateTime(updatedDates[selectedDateIndex], selectedTimeSlot)
-                navController.popBackStack()
+                selectedTimeSlot?.let { safeSlot ->
+                    cartViewModel.setSelectedDateTime(updatedDates[selectedDateIndex], safeSlot)
+                    navController.popBackStack()
+                }
             },
+            enabled = selectedTimeSlot != null,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFFD700) // Gold color
+                containerColor = Color(0xFFFFD700), // Gold color
+                disabledContainerColor = Color(0xFFFFD700).copy(alpha = 0.5f)
             ),
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
-                text = "Confirm Date & Time",
+                text = if (selectedTimeSlot == null) "No Time Available" else "Confirm Date & Time",
                 color = Color.Black,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
@@ -295,4 +324,21 @@ fun generateTimeSlots(): List<TimeSlot> {
         }
     }
     return timeSlots
+}
+
+// Filters out past time slots when Today is selected; returns all for Tomorrow
+private fun filterAvailableTimeSlotsForDate(selectedDateIndex: Int, allSlots: List<TimeSlot>): List<TimeSlot> {
+    if (selectedDateIndex != 0) return allSlots
+
+    val now = Calendar.getInstance()
+    val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+
+    return allSlots.filter { slot ->
+        val parts = slot.startTime.split(":")
+        if (parts.size != 2) return@filter false
+        val hour = parts[0].toIntOrNull() ?: return@filter false
+        val minute = parts[1].toIntOrNull() ?: return@filter false
+        val slotMinutes = hour * 60 + minute
+        slotMinutes > currentMinutes
+    }
 } 

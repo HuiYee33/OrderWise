@@ -40,5 +40,6 @@ data class PurchaseRecord(
     var feedback: String = "", // User feedback for this purchase
     val userEmail: String = "", // Email of the user who made the purchase
     val pickupDate: String? = null, // Optional: pickup day for 'order later' orders
-    val pickupTimeSlot: String? = null // Optional: pickup time slot for 'order later' orders
+    val pickupTimeSlot: String? = null, // Optional: pickup time slot for 'order later' orders
+    val adminReply: String? = null // Optional: admin's reply to the feedback
 ) 
