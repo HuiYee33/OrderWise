@@ -128,75 +128,7 @@ class ChatGPTService {
         }
     }
     
-    // Helper method to generate insights from dashboard data
-    suspend fun generateDashboardInsights(
-        totalOrders: Int,
-        totalItems: Int,
-        totalCustomers: Int,
-        revenue: Double,
-        dishStats: List<DishStats>
-
-    ): Result<String> {
-        val context = """
-            Restaurant Dashboard Data:
-            - Total Orders: $totalOrders
-            - Total Items Sold: $totalItems
-            - Total Customers: $totalCustomers
-            - Total Revenue: RM ${String.format("%.2f", revenue)}
-            
-            - Top Dishes: ${dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
-        """.trimIndent()
-        
-        val prompt = """
-            Based on this restaurant dashboard data, provide 3-4 key insights and recommendations for the restaurant owner. 
-            Focus on business opportunities, trends, and actionable advice.
-        """.trimIndent()
-        
-        return sendMessage(prompt, context)
-    }
-    
 
     
-    // Helper method for general restaurant management advice
-    suspend fun getRestaurantAdvice(topic: String): Result<String> {
-        val prompt = "Provide helpful advice about: $topic for a restaurant owner. Keep it concise and actionable."
-        return sendMessage(prompt)
-    }
-    
 
-    
-    // Test function to verify API key
-    suspend fun testApiKey(): Result<String> {
-        Log.d("ChatGPTService", "Testing API key: ${apiKey.take(10)}...")
-        return try {
-            val testRequest = ChatRequest(
-                model = "gpt-3.5-turbo",
-                messages = listOf(
-                    ChatMessage("user", "Hello, this is a test message.")
-                ),
-                max_tokens = 50,
-                temperature = 0.7
-            )
-            
-            val response = apiService.sendMessage("Bearer $apiKey", testRequest)
-            
-            if (response.isSuccessful) {
-                val chatResponse = response.body()
-                if (chatResponse?.choices?.isNotEmpty() == true) {
-                    Log.d("ChatGPTService", "API key test successful!")
-                    Result.success("API key is working: ${chatResponse.choices[0].message.content}")
-                } else {
-                    Log.e("ChatGPTService", "Test failed - no response body")
-                    Result.failure(Exception("Test failed - no response body"))
-                }
-            } else {
-                val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                Log.e("ChatGPTService", "Test failed: ${response.code()} - $errorBody")
-                Result.failure(Exception("Test failed: ${response.code()} - $errorBody"))
-            }
-        } catch (e: Exception) {
-            Log.e("ChatGPTService", "Test exception: ", e)
-            Result.failure(e)
-        }
-    }
 } 

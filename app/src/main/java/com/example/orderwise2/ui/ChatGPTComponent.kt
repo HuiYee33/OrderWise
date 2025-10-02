@@ -254,8 +254,15 @@ fun ChatGPTComponent(
                                 onMessagesChange?.invoke(updatedUser)
                                 inputText = ""
 
+                                val relevantKeywords = listOf(
+                                    "sales", "revenue", "orders", "customers", "items", "dish", "menu", "today", "weekly", "monthly"
+                                )
+
                                 // Intercept 'sales today' queries and answer locally
                                 val lower = userMessage.lowercase()
+
+                                val isRelevant = relevantKeywords.any { lower.contains(it) }
+
                                 val isTodayQuery = listOf(
                                     "sales today", "today sales", "today's sales", "revenue today", "today revenue",
                                     "sales for today", "how much did we make today", "what are today's sales", "todays sales"
@@ -266,20 +273,29 @@ fun ChatGPTComponent(
                                     val updated = messages + UIChatMessage(reply, false)
                                     messages = updated
                                     onMessagesChange?.invoke(updated)
+                                } else if (!isRelevant) {
+                                    // Out-of-scope question
+                                    val reply = "Sorry, this is out of my box. I can only provide restaurant insights."
+                                    val updated = messages + UIChatMessage(reply, false)
+                                    messages = updated
+                                    onMessagesChange?.invoke(updated)
                                 } else {
-                                    isLoading = true
+                                isLoading = true
                                     val context = if (dashboardData != null) {
                                         """
                                         Current Restaurant Data:
                                         - Total Orders: ${dashboardData.totalOrders}
                                         - Total Items Sold: ${dashboardData.totalItems}
-                                        - Total Revenue: RM ${String.format("%.2f", dashboardData.revenue)}
                                         - Total Customers: ${dashboardData.totalCustomers}
                                         - Top Dishes: ${dashboardData.dishStats.take(5).joinToString(", ") { "${it.name} (${it.quantity} orders)" }}
                                         - Today's Revenue: RM ${String.format("%.2f", dashboardData.todaysRevenue)}
-
-                                        If the user asks for today's sales/revenue, answer with Today's Revenue only, not the total.provide 3-4 key insights and recommendations for the restaurant owner. 
-            Focus on business opportunities, trends, and actionable advice.
+                                        - Weekly's Revenue: RM ${String.format("%.2f", dashboardData.weeklyRevenue)}
+                                        - Monthly's Revenue: RM ${String.format("%.2f", dashboardData.monthlyRevenue)}
+                                        If the user asks for today's sales/revenue, answer with Today's Revenue only, not the total.
+                                        provide 3-4 key insights and recommendations for the restaurant owner. 
+                                        Focus on business opportunities, trends, and actionable advice.
+                                        Predict what type of food or dishes customers are likely to prefer in the near future, based on popularity trends and revenue data.
+                                        Ignore the restaurant dashboard data if the question is not related. Only answer general questions if necessary.
                                         """.trimIndent()
                                     } else ""
 
@@ -359,13 +375,13 @@ fun LoadingMessage() {
     }
 }
 
-// QuickActionButtons removed
-
 data class DashboardData(
     val totalOrders: Int,
     val totalItems: Int,
     val revenue: Double,
     val dishStats: List<DishStats>,
     val totalCustomers: Int,
-    val todaysRevenue: Double
+    val todaysRevenue: Double,
+    val weeklyRevenue: Double,
+    val monthlyRevenue: Double
 )

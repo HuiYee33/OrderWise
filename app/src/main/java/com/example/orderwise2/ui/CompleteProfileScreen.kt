@@ -61,7 +61,7 @@ fun CompleteProfileScreen(navController: NavController) {
         )
 
         // Optional: show error if less than 10 digits
-        if (phone.isNotEmpty() && phone.length < 10) {
+        if (phone.isNotEmpty() && (phone.length < 10 || phone.length > 12)) {
             Text(
                 text = "Phone number must be between 10–12 digits.",
                 color = Color.Red,
@@ -75,24 +75,32 @@ fun CompleteProfileScreen(navController: NavController) {
         }
         Button(
             onClick = {
-                if (username.isBlank() || phone.isBlank()) {
-                    errorMessage = "Please fill in all fields."
-                    return@Button
+                when {
+                    username.isBlank() || phone.isBlank() -> {
+                        errorMessage = "Please fill in all fields."
+                        return@Button
+                    }
+                    phone.length < 10 || phone.length > 12 -> {
+                        errorMessage = "Phone number must be between 10–12 digits."
+                        return@Button
+                    }
+                    else -> {
+                        isLoading = true
+                        val db = FirebaseFirestore.getInstance()
+                        db.collection("users").document(email)
+                            .set(mapOf("email" to email, "username" to username, "phone" to phone))
+                            .addOnSuccessListener {
+                                isLoading = false
+                                navController.navigate(Screen.MenuHome.route) {
+                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                }
+                            }
+                            .addOnFailureListener {
+                                isLoading = false
+                                errorMessage = "Failed to save profile. Try again."
+                            }
+                    }
                 }
-                isLoading = true
-                val db = FirebaseFirestore.getInstance()
-                db.collection("users").document(email)
-                    .set(mapOf("email" to email, "username" to username, "phone" to phone))
-                    .addOnSuccessListener {
-                        isLoading = false
-                        navController.navigate(Screen.MenuHome.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
-                        }
-                    }
-                    .addOnFailureListener {
-                        isLoading = false
-                        errorMessage = "Failed to save profile. Try again."
-                    }
             },
             enabled = !isLoading,
             modifier = Modifier.fillMaxWidth()
@@ -101,4 +109,4 @@ fun CompleteProfileScreen(navController: NavController) {
             else Text("Save")
         }
     }
-} 
+}

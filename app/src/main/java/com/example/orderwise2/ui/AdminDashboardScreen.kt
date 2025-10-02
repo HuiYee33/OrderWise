@@ -34,15 +34,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-data class PreOrder(
-    val id: String,
-    val customerName: String,
-    val dishName: String,
-    val quantity: Int,
-    val remarks: String,
-    val time: String
-)
-
 data class DishStats(
     val name: String,
     val quantity: Int,
@@ -186,7 +177,17 @@ fun AdminDashboardScreen(navController: NavController) {
         todayRecords.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
     }
 
-    val dashboardData = DashboardData(overallOrders, overallItems, overallRevenue, dishStats,totalCustomers, todaysRevenue)
+    val weeklyRevenue = remember(purchaseHistory) {
+        val weekRecords = filterHistoryByRange(purchaseHistory, OverviewRange.WEEK)
+        weekRecords.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
+    }
+
+    val monthlyRevenue = remember(purchaseHistory) {
+        val monthRecords = filterHistoryByRange(purchaseHistory, OverviewRange.MONTH)
+        monthRecords.sumOf { it.items.sumOf { item -> item.unitPrice * item.quantity } }
+    }
+
+    val dashboardData = DashboardData(overallOrders, overallItems, overallRevenue, dishStats,totalCustomers, todaysRevenue,weeklyRevenue, monthlyRevenue)
 
     Scaffold(
         bottomBar = { AdminBottomNavigation(navController) }
@@ -572,48 +573,6 @@ private fun filterHistoryByRange(
     }
 }
 
-// Backfill helper removed per request
-
-@Composable
-fun PreOrderItem(order: PreOrder) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(2.dp),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    order.customerName,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    order.time,
-                    color = Color.Gray,
-                    fontSize = 12.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "${order.dishName} x${order.quantity}",
-                fontSize = 14.sp
-            )
-            if (order.remarks.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "Remarks: ${order.remarks}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun CategoryFilterSelector(
